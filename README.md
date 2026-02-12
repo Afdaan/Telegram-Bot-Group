@@ -27,10 +27,36 @@ Modular Telegram bot for group administration, sticker management, and more.
 
 4. **Run the bot**
    ```bash
+  ```bash
    python run.py
    ```
 
 5. **Add the bot to your group** and promote it to admin with appropriate permissions.
+
+## Docker Deployment (Recommended)
+
+Running with Docker is highly recommended for reliability and ease of management.
+
+1. **Install Docker and Docker Compose**
+
+2. **Configure `.env`**
+   Ensure your `.env` file is set up. Note: `DB_HOST` in `.env` will be overridden to `db` automatically by docker-compose, but other values are used.
+
+3. **Run with Docker Compose**
+   ```bash
+   docker-compose up -d --build
+   ```
+
+   This will:
+   - Build the bot container
+   - Start a MySQL 8.0 container (data persisted in `db_data` volume)
+   - Auto-create the database schema from `migrations/`
+   - Restart automatically if the server reboots or the bot crashes
+
+4. **View Logs**
+   ```bash
+   docker-compose logs -f bot
+   ```
 
 ## Commands
 

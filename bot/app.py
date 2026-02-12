@@ -1,3 +1,4 @@
+from telegram import Update
 from telegram.ext import ApplicationBuilder
 from bot.config import settings
 from bot.logger import setup_logging, get_logger
@@ -32,6 +33,6 @@ def main():
 
     logger.info("Polling for updates")
     app.run_polling(
-        allowed_updates=["message", "callback_query", "chat_member"],
+        allowed_updates=Update.ALL_TYPES,
         drop_pending_updates=True,
     )

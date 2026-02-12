@@ -1,5 +1,5 @@
 from bot.database.engine import async_session, init_db
-from bot.database.models import Base, User, Group, GroupSettings, Warning, StickerPack
+from bot.database.models import Base, User, Group, GroupSettings, Warning, StickerPack, Filter
 
 __all__ = [
     "async_session",
@@ -10,4 +10,5 @@ __all__ = [
     "GroupSettings",
     "Warning",
     "StickerPack",
+    "Filter",
 ]

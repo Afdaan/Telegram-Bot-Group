@@ -16,7 +16,7 @@ async def post_init(application):
     logger.info("Bot online → @%s (id: %s)", bot_info.username, bot_info.id)
 
 
-async def main():
+def main():
     setup_logging(settings.log_level)
     logger.info("Starting bot...")
 
@@ -31,7 +31,7 @@ async def main():
     app.add_error_handler(error_handler)
 
     logger.info("Polling for updates")
-    await app.run_polling(
+    app.run_polling(
         allowed_updates=["message", "callback_query", "chat_member"],
         drop_pending_updates=True,
     )

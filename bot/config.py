@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+from urllib.parse import quote_plus
+
 @dataclass(frozen=True)
 class Settings:
     bot_token: str
@@ -18,7 +20,7 @@ class Settings:
     @property
     def database_url(self) -> str:
         return (
-            f"mysql+aiomysql://{self.db_user}:{self.db_password}"
+            f"mysql+aiomysql://{quote_plus(self.db_user)}:{quote_plus(self.db_password)}"
             f"@{self.db_host}:{self.db_port}/{self.db_name}"
         )
 

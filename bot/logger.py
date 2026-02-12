@@ -1,10 +1,7 @@
 import logging
 import sys
-from logging.handlers import RotatingFileHandler
-from pathlib import Path
 
-LOG_DIR = Path("logs")
-LOG_DIR.mkdir(exist_ok=True)
+
 
 NOISY_LOGGERS = [
     "httpx",
@@ -52,16 +49,6 @@ class ColorFormatter(logging.Formatter):
             return name
         return ".".join([p[0] for p in parts[:-1]] + [parts[-1]])
 
-
-class FileFormatter(logging.Formatter):
-
-    def __init__(self):
-        super().__init__(
-            fmt="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-
-
 def setup_logging(level: str = "INFO"):
     root = logging.getLogger()
     root.setLevel(getattr(logging, level.upper(), logging.INFO))
@@ -73,26 +60,6 @@ def setup_logging(level: str = "INFO"):
     console.setFormatter(ColorFormatter())
     console.setLevel(logging.DEBUG)
     root.addHandler(console)
-
-    file_handler = RotatingFileHandler(
-        LOG_DIR / "bot.log",
-        maxBytes=5 * 1024 * 1024,
-        backupCount=3,
-        encoding="utf-8",
-    )
-    file_handler.setFormatter(FileFormatter())
-    file_handler.setLevel(logging.DEBUG)
-    root.addHandler(file_handler)
-
-    error_handler = RotatingFileHandler(
-        LOG_DIR / "error.log",
-        maxBytes=2 * 1024 * 1024,
-        backupCount=3,
-        encoding="utf-8",
-    )
-    error_handler.setFormatter(FileFormatter())
-    error_handler.setLevel(logging.ERROR)
-    root.addHandler(error_handler)
 
     for name in NOISY_LOGGERS:
         logging.getLogger(name).setLevel(logging.WARNING)

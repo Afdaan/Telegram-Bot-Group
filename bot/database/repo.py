@@ -1,6 +1,6 @@
 from sqlalchemy import select, delete, func
 from bot.database.engine import async_session
-from bot.database.models import User, Group, GroupSettings, Warning, StickerPack
+from bot.database.models import User, Group, GroupSettings, Warning, StickerPack, Filter
 
 
 class Repository:
@@ -125,5 +125,47 @@ class Repository:
         async with async_session() as session:
             result = await session.scalars(
                 select(StickerPack).where(StickerPack.owner_id == owner_id)
+            )
+            return list(result.all())
+
+    @staticmethod
+    async def add_filter(group_id: int, trigger: str, response: str, file_id: str = None, file_type: str = None) -> Filter:
+        async with async_session() as session:
+            trigger = trigger.lower()
+            existing_filter = await session.scalar(
+                select(Filter).where(Filter.group_id == group_id, Filter.trigger == trigger)
+            )
+            if existing_filter:
+                existing_filter.response = response
+                existing_filter.file_id = file_id
+                existing_filter.file_type = file_type
+            else:
+                existing_filter = Filter(group_id=group_id, trigger=trigger, response=response, file_id=file_id, file_type=file_type)
+                session.add(existing_filter)
+            await session.commit()
+            await session.refresh(existing_filter)
+            return existing_filter
+
+    @staticmethod
+    async def remove_filter(group_id: int, trigger: str) -> bool:
+        async with async_session() as session:
+            result = await session.execute(
+                delete(Filter).where(Filter.group_id == group_id, Filter.trigger == trigger.lower())
+            )
+            await session.commit()
+            return result.rowcount > 0
+
+    @staticmethod
+    async def get_filter(group_id: int, trigger: str) -> Filter | None:
+        async with async_session() as session:
+            return await session.scalar(
+                select(Filter).where(Filter.group_id == group_id, Filter.trigger == trigger.lower())
+            )
+
+    @staticmethod
+    async def get_filters(group_id: int) -> list[Filter]:
+        async with async_session() as session:
+            result = await session.scalars(
+                select(Filter).where(Filter.group_id == group_id)
             )
             return list(result.all())

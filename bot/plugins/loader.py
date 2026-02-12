@@ -12,6 +12,7 @@ PLUGIN_PACKAGES = [
     "bot.plugins.sticker",
     "bot.plugins.group",
     "bot.plugins.setup",
+    "bot.plugins.general",
 ]
 
 

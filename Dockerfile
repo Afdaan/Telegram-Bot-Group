@@ -29,6 +29,11 @@ COPY . .
 
 # Create a non-root user for security
 RUN addgroup -S alya && adduser -S alya -G alya
+
+# Set ownership of the application directory to the non-root user
+RUN mkdir -p /app/logs && chown -R alya:alya /app
+
+# Switch to non-root user
 USER alya
 
 # Command to run the bot

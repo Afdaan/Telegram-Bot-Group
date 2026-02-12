@@ -14,7 +14,7 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - ./logs:/app/logs
+      - bot_logs:/app/logs
 
   db:
     image: mysql:8.0
@@ -36,3 +36,4 @@ services:
 
 volumes:
   db_data:
+  bot_logs:

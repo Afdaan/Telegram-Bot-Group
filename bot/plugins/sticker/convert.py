@@ -4,8 +4,6 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 
-
-
 async def tophoto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply = update.effective_message.reply_to_message
     if not reply or not reply.sticker:
@@ -27,7 +25,6 @@ async def tophoto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     output.name = "sticker.png"
 
     await update.effective_message.reply_photo(photo=output)
-
 
 
 def register(app: Application):

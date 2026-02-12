@@ -51,7 +51,7 @@ async def kang(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         sticker_io = await process_image(file_obj)
-        sticker_input = InputSticker(sticker=sticker_io, emoji_list=[emoji], format="static")
+        sticker_input = InputSticker(sticker=sticker_io, emoji_list=[emoji])
 
         try:
             await context.bot.add_sticker_to_set(
@@ -76,7 +76,7 @@ async def kang(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     pass
             else:
                 raise e
-
+        
         sticker_set = await context.bot.get_sticker_set(name=pack_name)
         new_sticker = sticker_set.stickers[-1]
         

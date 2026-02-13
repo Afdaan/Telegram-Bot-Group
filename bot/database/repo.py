@@ -47,6 +47,13 @@ class Repository:
                 select(GroupSettings).where(GroupSettings.group_id == group_id)
             )
             if not settings:
+                group = await session.scalar(
+                    select(Group).where(Group.telegram_id == group_id)
+                )
+                if not group:
+                    group = Group(telegram_id=group_id)
+                    session.add(group)
+                    await session.flush()
                 settings = GroupSettings(group_id=group_id)
                 session.add(settings)
                 await session.commit()

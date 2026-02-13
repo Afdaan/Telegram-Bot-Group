@@ -22,7 +22,7 @@ RUN apk add --no-cache \
 COPY requirements.txt .
 
 # Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -q --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code
 COPY . .

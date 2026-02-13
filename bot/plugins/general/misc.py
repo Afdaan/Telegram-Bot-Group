@@ -10,6 +10,17 @@ logger = get_logger(__name__)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("Start command received from %s", update.effective_user.id)
     user = update.effective_user
+
+    if context.args and context.args[0] == "newpack":
+        await update.effective_message.reply_html(
+            f"Hey {user.mention_html()}! \U0001f3a8\n\n"
+            "Let's create your first sticker pack!\n\n"
+            "<b>Send a photo or reply to a sticker, then use:</b>\n"
+            "<code>/newpack Your Pack Name</code>\n\n"
+            "After creating your pack, you can use /kang and /addsticker in any group!"
+        )
+        return
+
     await update.effective_message.reply_html(
         f"Hi {user.mention_html()}! \U0001f44b\n\n"
         "I am a modular group management bot.\n"

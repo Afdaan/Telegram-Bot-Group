@@ -1,7 +1,7 @@
 import io
 import re
 from PIL import Image
-from telegram import Update, InputSticker
+from telegram import Update, InputSticker, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
 from telegram.error import TelegramError
 from bot.database.repo import Repository
@@ -69,10 +69,48 @@ def make_sticker(sticker_io: io.BytesIO, emoji: str) -> InputSticker:
     return InputSticker(sticker=sticker_io, emoji_list=[emoji], format="static")
 
 
-async def kang(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def require_pack_or_onboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    if update.effective_chat.type == "private":
+        return True
+
     user = update.effective_user
-    pack_name = await get_default_pack_name(user.id, context)
-    pack_title = f"{user.first_name}'s Pack"
+    packs = await Repository.get_user_sticker_packs(user.id)
+    if packs:
+        return True
+
+    bot_username = context.bot.username
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton(
+            "\U0001f4e6 Create Your First Pack",
+            url=f"https://t.me/{bot_username}?start=newpack",
+        )]
+    ])
+    await update.effective_message.reply_text(
+        f"\U0001f44b Hey {user.first_name}! You don't have a sticker pack yet.\n\n"
+        "DM me first to create your pack, then you can use /kang and /addsticker here!",
+        reply_markup=keyboard,
+    )
+    return False
+
+
+async def kang(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await require_pack_or_onboard(update, context):
+        return
+
+    user = update.effective_user
+    packs = await Repository.get_user_sticker_packs(user.id)
+
+    if packs:
+        pack_name = packs[0].pack_name
+        try:
+            sticker_set = await context.bot.get_sticker_set(name=pack_name)
+            pack_title = sticker_set.title
+        except TelegramError:
+            pack_name = await get_default_pack_name(user.id, context)
+            pack_title = f"{user.first_name}'s Pack"
+    else:
+        pack_name = await get_default_pack_name(user.id, context)
+        pack_title = f"{user.first_name}'s Pack"
 
     reply = update.effective_message.reply_to_message
     if not reply:
@@ -183,6 +221,9 @@ async def newpack(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def addsticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await require_pack_or_onboard(update, context):
+        return
+
     args = update.effective_message.text.split(maxsplit=1)
     if len(args) < 2:
         await update.effective_message.reply_text(
@@ -192,8 +233,17 @@ async def addsticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     user = update.effective_user
-    raw_name = args[1]
-    pack_name = await get_named_pack_name(user.id, raw_name, context)
+    raw_args = args[1]
+    split_args = raw_args.split(maxsplit=1)
+
+    pack_title = raw_args
+    custom_emoji = None
+
+    if re.fullmatch(r'[^a-zA-Z0-9_]+', split_args[0]):
+        custom_emoji = split_args[0]
+        pack_title = split_args[1] if len(split_args) > 1 else ""
+
+    pack_name = await get_named_pack_name(user.id, pack_title, context)
 
     reply = update.effective_message.reply_to_message
     if not reply:
@@ -204,6 +254,9 @@ async def addsticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not file_obj:
         await update.effective_message.reply_text("Unsupported media type.")
         return
+
+    if custom_emoji:
+        emoji = custom_emoji
 
     msg = await update.effective_message.reply_text("\u23f3 Adding sticker...")
 
@@ -219,7 +272,6 @@ async def addsticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         except TelegramError as e:
             if "STICKERSET_INVALID" in str(e).upper():
-                pack_title = raw_name
                 await context.bot.create_new_sticker_set(
                     user_id=user.id,
                     name=pack_name,

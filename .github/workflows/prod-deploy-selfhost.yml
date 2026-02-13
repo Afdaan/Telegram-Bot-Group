@@ -1,0 +1,105 @@
+name: Deploy PROD Telegram Bot
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    environment: production
+    env:
+      IMAGE_NAME: afdaaan/telegram-bot-prod
+      CONTAINER_NAME: telegram-bot-prod
+      BUILD_DIR: /opt/prod-alisa
+      RUNTIME_DIR: /opt/prod-alisa
+      ENV_TYPE: PROD
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Get Git Information
+        id: git_info
+        run: |
+          echo "COMMIT_SHORT=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "COMMIT_HASH=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          echo "COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')" >> $GITHUB_ENV
+          echo "COMMIT_DATE=$(git log -1 --pretty=format:'%ci')" >> $GITHUB_ENV
+          echo "COMMIT_MESSAGE=$(git log -1 --pretty=format:'%s')" >> $GITHUB_ENV
+          echo "GIT_BRANCH=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+
+      - name: Get Latest Tag and Calculate Next
+        id: next_tag
+        run: |
+          LATEST_TAG=$(curl -s "https://hub.docker.com/v2/repositories/${{ env.IMAGE_NAME }}/tags" | jq -r '.results[].name' | grep -E '^[0-9]+$' | sort -n | tail -1)
+          if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then LATEST_TAG=0; fi
+          NEXT_TAG=$((LATEST_TAG + 1))
+          echo "NEXT_TAG=$NEXT_TAG" >> $GITHUB_ENV
+
+      - name: Login to Docker Hub
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+
+      - name: Build Docker Image
+        run: docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.NEXT_TAG }} .
+
+      - name: Push Docker Image
+        run: docker push ${{ env.IMAGE_NAME }}:${{ env.NEXT_TAG }}
+
+      - name: Stop Old Container
+        run: docker rm -f ${{ env.CONTAINER_NAME }} || true
+
+      - name: Ensure Directories Exist
+        run: |
+          mkdir -p ${{ env.RUNTIME_DIR }}/logs
+      
+      - name: Run New Container (Hardened)
+        run: |
+          docker run -d \
+            --name ${{ env.CONTAINER_NAME }} \
+            --restart unless-stopped \
+            --env-file ${{ env.RUNTIME_DIR }}/.env \
+            -v ${{ env.RUNTIME_DIR }}/logs:/app/logs \
+            --read-only \
+            --cap-drop ALL \
+            --pids-limit 100 \
+            --memory 512m \
+            --cpus 1 \
+            ${{ env.IMAGE_NAME }}:${{ env.NEXT_TAG }}
+
+      - name: Cleanup Old Images
+        run: |
+          docker images "${{ env.IMAGE_NAME }}" --format "{{.Repository}}:{{.Tag}} {{.ID}}" \
+          | grep -v ":${{ env.NEXT_TAG }} " \
+          | awk '{print $2}' \
+          | xargs -r docker rmi -f || true
+
+      - name: Notify Telegram (Success)
+        if: success()
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          MESSAGE="✅ <b>${{ env.ENV_TYPE }} Deployment SUCCESS</b>%0A%0A📦 <b>Container:</b> ${{ env.CONTAINER_NAME }}%0A🏷 <b>Tag:</b> ${{ env.NEXT_TAG }}%0A🖼 <b>Image:</b> ${{ env.IMAGE_NAME }}:${{ env.NEXT_TAG }}%0A%0A📝 <b>Git Info:</b>%0A• <b>Branch:</b> ${{ env.GIT_BRANCH }}%0A• <b>Commit:</b> <code>${{ env.COMMIT_SHORT }}</code>%0A• <b>Author:</b> ${{ env.COMMIT_AUTHOR }}%0A• <b>Date:</b> ${{ env.COMMIT_DATE }}%0A• <b>Message:</b> ${{ env.COMMIT_MESSAGE }}%0A%0A🔒 <b>Security:</b>%0A• Read-only filesystem%0A• Capabilities dropped%0A• Limits applied"
+          
+          curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
+          -d chat_id="$CHAT_ID" \
+          -d parse_mode="HTML" \
+          -d text="$MESSAGE"
+
+      - name: Notify Telegram (Failure)
+        if: failure()
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          MESSAGE="❌ <b>${{ env.ENV_TYPE }} Deployment FAILED</b>%0A%0A📦 <b>Container:</b> ${{ env.CONTAINER_NAME }}%0A🏷 <b>Target Tag:</b> ${{ env.NEXT_TAG }}%0A%0A⚠️ <b>Check GitHub Actions logs for details.</b>"
+          
+          curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
+          -d chat_id="$CHAT_ID" \
+          -d parse_mode="HTML" \
+          -d text="$MESSAGE"

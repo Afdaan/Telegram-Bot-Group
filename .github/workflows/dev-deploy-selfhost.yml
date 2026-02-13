@@ -42,16 +42,16 @@ jobs:
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-        run: echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+        run: echo "$DOCKER_PASSWORD" | sudo docker login -u "$DOCKER_USERNAME" --password-stdin
 
       - name: Build Docker Image
-        run: docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.NEXT_TAG }} .
+        run: sudo docker build --no-cache -t ${{ env.IMAGE_NAME }}:${{ env.NEXT_TAG }} .
 
       - name: Push Docker Image
-        run: docker push ${{ env.IMAGE_NAME }}:${{ env.NEXT_TAG }}
+        run: sudo docker push ${{ env.IMAGE_NAME }}:${{ env.NEXT_TAG }}
 
       - name: Stop Old Container
-        run: docker rm -f ${{ env.CONTAINER_NAME }} || true
+        run: sudo docker rm -f ${{ env.CONTAINER_NAME }} || true
 
       - name: Ensure Directories Exist
         run: |
@@ -61,7 +61,7 @@ jobs:
 
       - name: Run New Container
         run: |
-          docker run -d \
+          sudo docker run -d \
             --name ${{ env.CONTAINER_NAME }} \
             --restart unless-stopped \
             --env-file ${{ env.RUNTIME_DIR }}/.env \
@@ -70,10 +70,10 @@ jobs:
 
       - name: Cleanup Old Images
         run: |
-          docker images "${{ env.IMAGE_NAME }}" --format "{{.Repository}}:{{.Tag}} {{.ID}}" \
+          sudo docker images "${{ env.IMAGE_NAME }}" --format "{{.Repository}}:{{.Tag}} {{.ID}}" \
           | grep -v ":${{ env.NEXT_TAG }} " \
           | awk '{print $2}' \
-          | xargs -r docker rmi -f || true
+          | xargs -r sudo docker rmi -f || true
 
       - name: Notify Telegram (Success)
         if: success()

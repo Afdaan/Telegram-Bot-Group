@@ -27,8 +27,9 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         chat = await context.bot.get_chat(user_id)
-    except BadRequest:
-        await message.reply_text("User not found.")
+    except (BadRequest, Exception) as e:
+        logger.error(f"Failed to get user info for {user_id}: {e}")
+        await message.reply_text("❌ User not found or cannot retrieve user information.")
         return
 
     db_user = await Repository.get_user(user_id)
@@ -62,7 +63,8 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if hasattr(member, "custom_title") and member.custom_title:
                 lines.append(f"<b>Title:</b> {html.escape(member.custom_title)}")
-        except BadRequest:
+        except (BadRequest, Exception) as e:
+            logger.warning(f"Failed to get chat member info: {e}")
             pass
 
         if db_user:
@@ -96,108 +98,125 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def me(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
-    target = await extract_user(update)
+    try:
+        target = await extract_user(update)
 
-    if target:
-        user_id, name = target
-    else:
-        user_id = update.effective_user.id
-        name = update.effective_user.first_name
+        if target:
+            user_id, name = target
+        else:
+            user_id = update.effective_user.id
+            name = update.effective_user.first_name
 
-    db_user = await Repository.get_user(user_id)
+        db_user = await Repository.get_user(user_id)
 
-    if db_user and db_user.about:
-        await message.reply_text(
-            f"<b>{html.escape(name)}</b>:\n{html.escape(db_user.about)}",
-            parse_mode="HTML",
-        )
-    elif target:
-        await message.reply_text(f"{html.escape(name)} hasn't set an about info yet.")
-    else:
-        await message.reply_text("You haven't set an about info yet! Use /setme <text>")
+        if db_user and db_user.about:
+            await message.reply_text(
+                f"<b>{html.escape(name)}</b>:\n{html.escape(db_user.about)}",
+                parse_mode="HTML",
+            )
+        elif target:
+            await message.reply_text(f"{html.escape(name)} hasn't set an about info yet.")
+        else:
+            await message.reply_text("You haven't set an about info yet! Use /setme <text>")
+    except Exception as e:
+        logger.error(f"Error in /me command: {e}")
+        await message.reply_text("❌ An error occurred while fetching user info.")
 
 
 async def setme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
     user_id = update.effective_user.id
-    args = message.text.split(None, 1)
+    
+    try:
+        args = message.text.split(None, 1)
 
-    if len(args) < 2:
-        await message.reply_text("Usage: /setme <text about yourself>")
-        return
+        if len(args) < 2:
+            await message.reply_text("Usage: /setme <text about yourself>")
+            return
 
-    text = args[1]
-    if len(text) > MAX_BIO_LENGTH:
-        await message.reply_text(
-            f"Your info is too long! Max {MAX_BIO_LENGTH} characters, you have {len(text)}."
-        )
-        return
+        text = args[1]
+        if len(text) > MAX_BIO_LENGTH:
+            await message.reply_text(
+                f"Your info is too long! Max {MAX_BIO_LENGTH} characters, you have {len(text)}."
+            )
+            return
 
-    await Repository.upsert_user(user_id,
-                                  username=update.effective_user.username,
-                                  first_name=update.effective_user.first_name)
-    await Repository.set_user_about(user_id, text)
-    await message.reply_text("✅ Updated your info!")
+        await Repository.upsert_user(user_id,
+                                      username=update.effective_user.username,
+                                      first_name=update.effective_user.first_name)
+        await Repository.set_user_about(user_id, text)
+        await message.reply_text("✅ Updated your info!")
+    except Exception as e:
+        logger.error(f"Error in /setme command: {e}")
+        await message.reply_text("❌ Failed to update your info. Please try again.")
 
 
 async def bio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
-    target = await extract_user(update)
+    try:
+        target = await extract_user(update)
 
-    if target:
-        user_id, name = target
-    else:
-        user_id = update.effective_user.id
-        name = update.effective_user.first_name
+        if target:
+            user_id, name = target
+        else:
+            user_id = update.effective_user.id
+            name = update.effective_user.first_name
 
-    db_user = await Repository.get_user(user_id)
+        db_user = await Repository.get_user(user_id)
 
-    if db_user and db_user.bio:
-        await message.reply_text(
-            f"<b>{html.escape(name)}</b>:\n{html.escape(db_user.bio)}",
-            parse_mode="HTML",
-        )
-    elif target:
-        await message.reply_text(f"{html.escape(name)} doesn't have a bio set yet.")
-    else:
-        await message.reply_text("You don't have a bio yet! Someone else needs to set it with /setbio")
+        if db_user and db_user.bio:
+            await message.reply_text(
+                f"<b>{html.escape(name)}</b>:\n{html.escape(db_user.bio)}",
+                parse_mode="HTML",
+            )
+        elif target:
+            await message.reply_text(f"{html.escape(name)} doesn't have a bio set yet.")
+        else:
+            await message.reply_text("You don't have a bio yet! Someone else needs to set it with /setbio")
+    except Exception as e:
+        logger.error(f"Error in /bio command: {e}")
+        await message.reply_text("❌ An error occurred while fetching bio.")
 
 
 async def setbio(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
 
-    if not message.reply_to_message:
-        await message.reply_text("Reply to someone's message to set their bio!")
-        return
+    try:
+        if not message.reply_to_message:
+            await message.reply_text("Reply to someone's message to set their bio!")
+            return
 
-    target_user = message.reply_to_message.from_user
-    setter_id = update.effective_user.id
+        target_user = message.reply_to_message.from_user
+        setter_id = update.effective_user.id
 
-    if target_user.id == setter_id:
-        await message.reply_text("You can't set your own bio! Ask someone else to do it 😉")
-        return
+        if target_user.id == setter_id:
+            await message.reply_text("You can't set your own bio! Ask someone else to do it 😉")
+            return
 
-    if target_user.is_bot:
-        await message.reply_text("You can't set a bio for bots.")
-        return
+        if target_user.is_bot:
+            await message.reply_text("You can't set a bio for bots.")
+            return
 
-    args = message.text.split(None, 1)
-    if len(args) < 2:
-        await message.reply_text("Usage: /setbio <text> (reply to someone)")
-        return
+        args = message.text.split(None, 1)
+        if len(args) < 2:
+            await message.reply_text("Usage: /setbio <text> (reply to someone)")
+            return
 
-    text = args[1]
-    if len(text) > MAX_BIO_LENGTH:
-        await message.reply_text(
-            f"Bio is too long! Max {MAX_BIO_LENGTH} characters, you have {len(text)}."
-        )
-        return
+        text = args[1]
+        if len(text) > MAX_BIO_LENGTH:
+            await message.reply_text(
+                f"Bio is too long! Max {MAX_BIO_LENGTH} characters, you have {len(text)}."
+            )
+            return
 
-    await Repository.upsert_user(target_user.id,
-                                  username=target_user.username,
-                                  first_name=target_user.first_name)
-    await Repository.set_user_bio(target_user.id, text)
-    await message.reply_text(f"✅ Updated {html.escape(target_user.first_name)}'s bio!")
+        await Repository.upsert_user(target_user.id,
+                                      username=target_user.username,
+                                      first_name=target_user.first_name)
+        await Repository.set_user_bio(target_user.id, text)
+        await message.reply_text(f"✅ Updated {html.escape(target_user.first_name)}'s bio!")
+    except Exception as e:
+        logger.error(f"Error in /setbio command: {e}")
+        await message.reply_text("❌ Failed to update bio. Please try again.")
 
 
 def register(app: Application):

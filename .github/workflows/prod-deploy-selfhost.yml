@@ -2,7 +2,7 @@ name: Deploy PROD Telegram Bot
 
 on:
   push:
-    branches: [ "master", "main" ]
+    branches: ["master", "main"]
   workflow_dispatch:
 
 jobs:
@@ -56,15 +56,14 @@ jobs:
       - name: Ensure Directories Exist
         run: |
           mkdir -p ${{ env.RUNTIME_DIR }}/logs
-      
-      - name: Run New Container (Hardened)
+
+      - name: Run New Container
         run: |
           sudo docker run -d \
             --name ${{ env.CONTAINER_NAME }} \
             --restart unless-stopped \
             --env-file ${{ env.RUNTIME_DIR }}/.env \
             -v ${{ env.RUNTIME_DIR }}/logs:/app/logs \
-            --read-only \
             --cap-drop ALL \
             --pids-limit 100 \
             --memory 512m \
@@ -85,7 +84,7 @@ jobs:
           CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           MESSAGE="✅ <b>${{ env.ENV_TYPE }} Deployment SUCCESS</b>%0A%0A📦 <b>Container:</b> ${{ env.CONTAINER_NAME }}%0A🏷 <b>Tag:</b> ${{ env.NEXT_TAG }}%0A🖼 <b>Image:</b> ${{ env.IMAGE_NAME }}:${{ env.NEXT_TAG }}%0A%0A📝 <b>Git Info:</b>%0A• <b>Branch:</b> ${{ env.GIT_BRANCH }}%0A• <b>Commit:</b> <code>${{ env.COMMIT_SHORT }}</code>%0A• <b>Author:</b> ${{ env.COMMIT_AUTHOR }}%0A• <b>Date:</b> ${{ env.COMMIT_DATE }}%0A• <b>Message:</b> ${{ env.COMMIT_MESSAGE }}%0A%0A🔒 <b>Security:</b>%0A• Read-only filesystem%0A• Capabilities dropped%0A• Limits applied"
-          
+
           curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
           -d chat_id="$CHAT_ID" \
           -d parse_mode="HTML" \
@@ -98,7 +97,7 @@ jobs:
           CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           MESSAGE="❌ <b>${{ env.ENV_TYPE }} Deployment FAILED</b>%0A%0A📦 <b>Container:</b> ${{ env.CONTAINER_NAME }}%0A🏷 <b>Target Tag:</b> ${{ env.NEXT_TAG }}%0A%0A⚠️ <b>Check GitHub Actions logs for details.</b>"
-          
+
           curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
           -d chat_id="$CHAT_ID" \
           -d parse_mode="HTML" \

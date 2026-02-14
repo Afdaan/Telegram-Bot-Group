@@ -10,9 +10,7 @@ logger = get_logger(__name__)
 
 STICKER_SIZE = 512
 MAX_VIDEO_STICKER_BYTES = 256 * 1024
-TMP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "tmp")
-os.makedirs(TMP_DIR, exist_ok=True)
-tempfile.tempdir = TMP_DIR
+tempfile.tempdir = os.environ.get("TMPDIR", "/app/tmp")
 
 
 VIDEO_SCALE_FILTER = (

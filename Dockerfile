@@ -16,6 +16,7 @@ WORKDIR /app
 RUN apk add --no-cache \
     gcc \
     mariadb-dev \
+    ffmpeg \
     && rm -rf /var/lib/apk/cache
 
 # Copy the requirements file into the container

@@ -1,11 +1,11 @@
 import io
 import re
-from PIL import Image
 from telegram import Update, InputSticker, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
 from telegram.error import TelegramError
 from bot.database.repo import Repository
 from bot.logger import get_logger
+from bot.plugins.sticker.utils import image_to_webp, video_to_webm
 
 logger = get_logger(__name__)
 
@@ -27,46 +27,41 @@ async def get_named_pack_name(user_id: int, name: str, context: ContextTypes.DEF
     return f"{clean}_{user_id}_by_{context.bot.username}"
 
 
-async def process_image(photo_file) -> io.BytesIO:
-    photo_bytes = await photo_file.download_as_bytearray()
-    image = Image.open(io.BytesIO(photo_bytes)).convert("RGBA")
-
-    width, height = image.size
-    if width >= height:
-        new_width = 512
-        new_height = max(1, int((512 / width) * height))
-    else:
-        new_height = 512
-        new_width = max(1, int((512 / height) * width))
-
-    image = image.resize((new_width, new_height), Image.LANCZOS)
-
-    output = io.BytesIO()
-    image.save(output, format="WEBP")
-    output.seek(0)
-    return output
-
-
 async def extract_file(reply) -> tuple:
     file_obj = None
     emoji = DEFAULT_EMOJI
+    is_video = False
 
     if reply.photo:
         file_obj = await reply.photo[-1].get_file()
     elif reply.sticker:
-        if reply.sticker.is_animated or reply.sticker.is_video:
-            return None, emoji
         file_obj = await reply.sticker.get_file()
         if reply.sticker.emoji:
             emoji = reply.sticker.emoji
-    elif reply.document and reply.document.mime_type and reply.document.mime_type.startswith("image/"):
-        file_obj = await reply.document.get_file()
+        if reply.sticker.is_video or reply.sticker.is_animated:
+            is_video = True
+    elif reply.animation:
+        file_obj = await reply.animation.get_file()
+        is_video = True
+    elif reply.document and reply.document.mime_type:
+        if reply.document.mime_type.startswith("image/gif"):
+            file_obj = await reply.document.get_file()
+            is_video = True
+        elif reply.document.mime_type.startswith("image/"):
+            file_obj = await reply.document.get_file()
 
-    return file_obj, emoji
+    return file_obj, emoji, is_video
 
 
-def make_sticker(sticker_io: io.BytesIO, emoji: str) -> InputSticker:
-    return InputSticker(sticker=sticker_io, emoji_list=[emoji], format="static")
+async def process_sticker(file_obj, is_video: bool) -> io.BytesIO | None:
+    if is_video:
+        return await video_to_webm(file_obj)
+    return await image_to_webp(file_obj)
+
+
+def make_sticker(sticker_io: io.BytesIO, emoji: str, is_video: bool = False) -> InputSticker:
+    fmt = "video" if is_video else "static"
+    return InputSticker(sticker=sticker_io, emoji_list=[emoji], format=fmt)
 
 
 async def require_pack_or_onboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
@@ -114,12 +109,12 @@ async def kang(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     reply = update.effective_message.reply_to_message
     if not reply:
-        await update.effective_message.reply_text("Reply to a photo or sticker to kang it.")
+        await update.effective_message.reply_text("Reply to a photo, sticker, or GIF to kang it.")
         return
 
-    file_obj, emoji = await extract_file(reply)
+    file_obj, emoji, is_video = await extract_file(reply)
     if not file_obj:
-        await update.effective_message.reply_text("Unsupported media type. (animated/video stickers are not supported)")
+        await update.effective_message.reply_text("Unsupported media type.")
         return
 
     if context.args:
@@ -128,8 +123,11 @@ async def kang(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await update.effective_message.reply_text("\u23f3 Kanging...")
 
     try:
-        sticker_io = await process_image(file_obj)
-        sticker_input = make_sticker(sticker_io, emoji)
+        sticker_io = await process_sticker(file_obj, is_video)
+        if not sticker_io:
+            await msg.edit_text("❌ Failed to process media. It may be too large.")
+            return
+        sticker_input = make_sticker(sticker_io, emoji, is_video)
 
         try:
             await context.bot.add_sticker_to_set(
@@ -177,10 +175,10 @@ async def newpack(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     reply = update.effective_message.reply_to_message
     if not reply:
-        await update.effective_message.reply_text("Reply to a photo or sticker as the first sticker.")
+        await update.effective_message.reply_text("Reply to a photo, sticker, or GIF as the first sticker.")
         return
 
-    file_obj, emoji = await extract_file(reply)
+    file_obj, emoji, is_video = await extract_file(reply)
     if not file_obj:
         await update.effective_message.reply_text("Unsupported media type.")
         return
@@ -188,8 +186,11 @@ async def newpack(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await update.effective_message.reply_text("\u23f3 Creating pack...")
 
     try:
-        sticker_io = await process_image(file_obj)
-        sticker_input = make_sticker(sticker_io, emoji)
+        sticker_io = await process_sticker(file_obj, is_video)
+        if not sticker_io:
+            await msg.edit_text("❌ Failed to process media. It may be too large.")
+            return
+        sticker_input = make_sticker(sticker_io, emoji, is_video)
 
         await context.bot.create_new_sticker_set(
             user_id=user.id,
@@ -250,7 +251,7 @@ async def addsticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("Reply to a photo or sticker to add it.")
         return
 
-    file_obj, emoji = await extract_file(reply)
+    file_obj, emoji, is_video = await extract_file(reply)
     if not file_obj:
         await update.effective_message.reply_text("Unsupported media type.")
         return
@@ -261,8 +262,11 @@ async def addsticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await update.effective_message.reply_text("\u23f3 Adding sticker...")
 
     try:
-        sticker_io = await process_image(file_obj)
-        sticker_input = make_sticker(sticker_io, emoji)
+        sticker_io = await process_sticker(file_obj, is_video)
+        if not sticker_io:
+            await msg.edit_text("❌ Failed to process media. It may be too large.")
+            return
+        sticker_input = make_sticker(sticker_io, emoji, is_video)
 
         try:
             await context.bot.add_sticker_to_set(

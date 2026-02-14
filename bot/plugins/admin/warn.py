@@ -3,7 +3,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 from bot.database.repo import Repository
 from bot.logger import get_logger
 from bot.utils.decorators import group_only, admin_only, bot_admin_required, skip_old_updates
-from bot.utils.parse import extract_user
+from bot.utils.parse import extract_user, check_target_not_admin
 
 logger = get_logger(__name__)
 
@@ -21,6 +21,9 @@ async def warn(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id, name = target
     chat_id = update.effective_chat.id
     warned_by = update.effective_user.id
+
+    if not await check_target_not_admin(update, context, user_id):
+        return
 
     args = update.effective_message.text.split(maxsplit=2)
     reason = args[2] if len(args) > 2 else "No reason provided"

@@ -1,6 +1,7 @@
 import re
 from datetime import timedelta
-from telegram import Message, Update
+from telegram import Update
+from telegram.ext import ContextTypes
 
 
 DURATION_PATTERN = re.compile(r"(\d+)\s*([mhd])", re.IGNORECASE)
@@ -32,6 +33,17 @@ async def extract_user(update: Update) -> tuple[int, str] | None:
         return int(identifier), identifier
 
     return None
+
+
+async def check_target_not_admin(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int
+) -> bool:
+    chat_id = update.effective_chat.id
+    member = await context.bot.get_chat_member(chat_id, user_id)
+    if member.status in ("administrator", "creator"):
+        await update.effective_message.reply_text("⚠️ Cannot perform this action on an admin.")
+        return False
+    return True
 
 
 def parse_duration(text: str) -> timedelta | None:

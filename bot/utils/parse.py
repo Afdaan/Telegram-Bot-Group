@@ -31,19 +31,23 @@ async def extract_user(update: Update) -> tuple[int, str] | None:
                     return user.id, user.first_name or user.username or str(user.id)
 
             if entity.type == "mention":
-                username = message.text[entity.offset + 1:entity.offset + entity.length]
+                start = entity.offset
+                end = entity.offset + entity.length
+                mention_text = message.text[start:end]
+                username = mention_text.lstrip('@')
+                
                 try:
                     chat = await message.get_bot().get_chat(f"@{username}")
                     if chat and chat.id:
                         return chat.id, chat.first_name or chat.username or str(chat.id)
-                except (BadRequest, Exception):
+                except (BadRequest, Exception) as e:
                     pass
 
     args = message.text.split()
     if len(args) < 2:
         return None
 
-    identifier = args[1]
+    identifier = args[1].strip()
 
     if identifier.startswith("@"):
         identifier = identifier[1:]
@@ -56,9 +60,9 @@ async def extract_user(update: Update) -> tuple[int, str] | None:
 
     try:
         chat = await message.get_bot().get_chat(f"@{identifier}")
-        if chat:
+        if chat and chat.id:
             return chat.id, chat.first_name or chat.username or str(chat.id)
-    except (BadRequest, Exception):
+    except (BadRequest, Exception) as e:
         pass
 
     user = await Repository.get_user_by_username(identifier)

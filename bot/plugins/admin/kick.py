@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from bot.logger import get_logger
 from bot.utils.decorators import group_only, admin_only, bot_admin_required, skip_old_updates
-from bot.utils.parse import extract_user
+from bot.utils.parse import extract_user, check_target_not_admin
 
 logger = get_logger(__name__)
 
@@ -19,6 +19,9 @@ async def kick(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id, name = target
     chat_id = update.effective_chat.id
+
+    if not await check_target_not_admin(update, context, user_id):
+        return
 
     await context.bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
     await context.bot.unban_chat_member(chat_id=chat_id, user_id=user_id)

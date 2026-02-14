@@ -3,7 +3,7 @@ from telegram import Update, ChatPermissions
 from telegram.ext import Application, CommandHandler, ContextTypes
 from bot.logger import get_logger
 from bot.utils.decorators import group_only, admin_only, bot_admin_required, skip_old_updates
-from bot.utils.parse import extract_user, parse_duration, format_duration
+from bot.utils.parse import extract_user, parse_duration, format_duration, check_target_not_admin
 
 logger = get_logger(__name__)
 
@@ -19,6 +19,9 @@ async def timeout(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     user_id, name = target
+
+    if not await check_target_not_admin(update, context, user_id):
+        return
 
     args = update.effective_message.text.split()
     duration_text = args[2] if len(args) >= 3 else (args[1] if update.effective_message.reply_to_message and len(args) >= 2 else None)

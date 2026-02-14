@@ -3,7 +3,7 @@ from telegram import Update, ChatPermissions
 from telegram.ext import Application, CommandHandler, ContextTypes
 from bot.logger import get_logger
 from bot.utils.decorators import group_only, admin_only, bot_admin_required, skip_old_updates
-from bot.utils.parse import extract_user, parse_duration, format_duration
+from bot.utils.parse import extract_user, parse_duration, format_duration, check_target_not_admin
 
 logger = get_logger(__name__)
 
@@ -20,6 +20,9 @@ async def mute(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id, name = target
     chat_id = update.effective_chat.id
+
+    if not await check_target_not_admin(update, context, user_id):
+        return
 
     duration = None
     args = update.effective_message.text.split()
@@ -57,6 +60,9 @@ async def unmute(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id, name = target
     chat_id = update.effective_chat.id
+
+
+
 
     permissions = ChatPermissions(
         can_send_messages=True,

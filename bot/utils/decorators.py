@@ -1,6 +1,20 @@
+import time
 from functools import wraps
 from telegram import Update, ChatMember
 from telegram.ext import ContextTypes
+
+STALE_THRESHOLD = 60
+
+
+def skip_old_updates(func):
+    @wraps(func)
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+        if update.effective_message and update.effective_message.date:
+            msg_time = update.effective_message.date.timestamp()
+            if time.time() - msg_time > STALE_THRESHOLD:
+                return
+        return await func(update, context, *args, **kwargs)
+    return wrapper
 
 
 def group_only(func):

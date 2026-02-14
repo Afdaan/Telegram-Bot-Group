@@ -32,7 +32,7 @@ COPY . .
 RUN addgroup -S alya && adduser -S alya -G alya
 
 # Set ownership of the application directory to the non-root user
-RUN mkdir -p /app/logs /app/tmp && chown -R alya:alya /app
+RUN mkdir -p /app/logs /app/tmp && chown -R alya:alya /app && chmod 1777 /app/tmp
 
 ENV TMPDIR=/app/tmp
 

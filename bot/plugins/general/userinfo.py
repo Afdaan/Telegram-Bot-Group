@@ -11,17 +11,24 @@ logger = get_logger(__name__)
 
 async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
-    args = message.text.split()
-
-    if len(args) >= 2 or message.reply_to_message:
+    
+    command_text = message.text or ""
+    command_parts = command_text.split(None, 1)
+    has_args = len(command_parts) > 1
+    
+    logger.info(f"Userinfo command: has_args={has_args}, has_reply={bool(message.reply_to_message)}, entities={message.entities}")
+    
+    if has_args or message.reply_to_message:
         target = await extract_user(update)
         if target:
-            user_id, _ = target
+            user_id, username = target
+            logger.info(f"Extracted user_id: {user_id} (username: {username})")
         else:
             await message.reply_text("❌ User not found. Try replying to their message or use @username or user ID.")
             return
     else:
         user_id = update.effective_user.id
+        logger.info(f"Self userinfo for: {user_id} ({update.effective_user.username})")
 
     if not user_id or user_id <= 0:
         await message.reply_text("❌ Invalid user ID.")
@@ -82,7 +89,9 @@ async def _add_group_info(lines, update, context, user_id):
         settings = await Repository.get_or_create_settings(update.effective_chat.id)
         lines.append(f"<b>Warnings:</b> {len(warnings)}/{settings.warn_limit}")
     except Exception as e:
-        logger.warning(f"Failed to get warnings: {e}")
+        error_msg = str(e)
+        if "Unknown column" not in error_msg and "OperationalError" not in error_msg:
+            logger.warning(f"Failed to get warnings: {e}")
 
 
 async def _send_user_info_response(message, user_id, lines):

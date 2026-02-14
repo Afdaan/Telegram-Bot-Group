@@ -40,26 +40,6 @@ class Repository:
             )
 
     @staticmethod
-    async def set_user_bio(telegram_id: int, bio: str) -> None:
-        async with async_session() as session:
-            user = await session.scalar(
-                select(User).where(User.telegram_id == telegram_id)
-            )
-            if user:
-                user.bio = bio
-                await session.commit()
-
-    @staticmethod
-    async def set_user_about(telegram_id: int, about: str) -> None:
-        async with async_session() as session:
-            user = await session.scalar(
-                select(User).where(User.telegram_id == telegram_id)
-            )
-            if user:
-                user.about = about
-                await session.commit()
-
-    @staticmethod
     async def upsert_group(telegram_id: int, title: str = None) -> Group:
         async with async_session() as session:
             group = await session.scalar(

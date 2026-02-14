@@ -1,6 +1,7 @@
 import re
 from datetime import timedelta
 from telegram import Update
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 from bot.database.repo import Repository
 
@@ -42,6 +43,13 @@ async def extract_user(update: Update) -> tuple[int, str] | None:
     user = await Repository.get_user_by_username(identifier)
     if user:
         return user.telegram_id, user.first_name or user.username or str(user.telegram_id)
+
+    try:
+        chat = await message.get_bot().get_chat(f"@{identifier}")
+        if chat and chat.type == "private":
+            return chat.id, chat.first_name or chat.username or str(chat.id)
+    except (BadRequest, Exception):
+        pass
 
     return None
 

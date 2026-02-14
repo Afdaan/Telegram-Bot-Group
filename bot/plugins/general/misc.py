@@ -30,19 +30,44 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
         "<b>Available Commands:</b>\n\n"
+
+        "<b>\U0001f916 General:</b>\n"
+        "/start - Check if I'm alive\n"
+        "/help - Show this message\n"
+        "/ping - Check bot latency\n"
+        "/afk - Mark yourself as AFK\n"
+        "/tr - Translate text\n"
+        "/userinfo - Detailed user info\n"
+        "/me - View your about info\n"
+        "/setme - Set your about info\n"
+        "/bio - View someone's bio\n"
+        "/setbio - Set someone's bio (reply)\n\n"
+
         "<b>\U0001f46e Admin Only:</b>\n"
         "/ban, /unban - Ban/Unban user\n"
-        "/mute, /unmute - Mute/Unmute user\n"
         "/kick - Kick user\n"
-        "/warn, /unwarn - Warn management\n"
+        "/mute, /unmute - Mute/Unmute user\n"
+        "/timeout - Restrict user for a duration\n"
+        "/warn, /warns, /resetwarns - Warn management\n"
+        "/warnlimit - Set warn limit\n"
+        "/strongwarn - Ban or kick on warn limit\n"
+        "/addwarn, /nowarn, /warnlist - Warn filters\n"
         "/purge - Delete messages\n"
         "/pin, /unpin - Pin management\n\n"
-        
+
         "<b>\u2699\ufe0f Group Settings:</b>\n"
-        "/setup - Interactive setup\n"
-        "/rules - Set/view rules\n"
+        "/setup - Interactive setup wizard\n"
+        "/rules, /setrules - View/set rules\n"
+        "/setwelcome, /resetwelcome - Welcome message\n"
         "/slowmode - Set slowmode delay\n"
-        "/antiflood - Configure anti-flood\n\n"
+        "/antiflood, /flood - Anti-flood settings\n"
+        "/reports - Enable/disable reporting\n"
+        "/report - Report a message to admins\n\n"
+
+        "<b>\U0001f516 Filters & Blacklist:</b>\n"
+        "/filter, /stop, /filters - Auto-response filters\n"
+        "/blacklist - View blacklisted words\n"
+        "/addblacklist, /rmblacklist - Manage blacklist\n\n"
 
         "<b>\U0001f3a8 Stickers:</b>\n"
         "/kang - Add sticker to your pack\n"
@@ -50,12 +75,15 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/addsticker - Add sticker to named pack\n"
         "/delsticker - Remove sticker from pack\n"
         "/mypacks - List your packs\n"
-        "/tophoto - Convert sticker to photo\n\n"
+        "/tophoto - Convert sticker to photo\n"
+        "/togif - Convert video sticker to GIF\n"
+        "/tosticker - Convert GIF to video sticker\n\n"
 
-        "<b>\u2139\ufe0f General:</b>\n"
-        "/start - Check if I'm alive\n"
-        "/help - Show this message\n"
-        "/ping - Check latency"
+        "<b>\U0001f4e1 RSS Feeds:</b>\n"
+        "/rss - Preview an RSS feed\n"
+        "/listrss - List subscriptions\n"
+        "/addrss - Subscribe to a feed\n"
+        "/removerss - Unsubscribe from a feed"
     )
     await update.effective_message.reply_text(help_text, parse_mode=ParseMode.HTML)
 

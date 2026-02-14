@@ -13,10 +13,15 @@ MAX_BIO_LENGTH = constants.MessageLimit.MAX_TEXT_LENGTH // 4
 
 async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
-    target = await extract_user(update)
+    args = message.text.split()
 
-    if target:
-        user_id, _ = target
+    if len(args) >= 2 or message.reply_to_message:
+        target = await extract_user(update)
+        if target:
+            user_id, _ = target
+        else:
+            await message.reply_text("User not found.")
+            return
     else:
         user_id = update.effective_user.id
 

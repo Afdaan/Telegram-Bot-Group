@@ -3,7 +3,6 @@ from datetime import timedelta
 from telegram import Update
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
-from bot.database.repo import Repository
 
 
 DURATION_PATTERN = re.compile(r"(\d+)\s*([mhd])", re.IGNORECASE)
@@ -17,11 +16,6 @@ DURATION_UNITS = {
 
 async def extract_user(update: Update) -> tuple[int, str] | None:
     message = update.effective_message
-
-    if message.reply_to_message:
-        target = message.reply_to_message.from_user
-        if target and target.id:
-            return target.id, target.first_name or target.username or str(target.id)
 
     if message.entities:
         for entity in message.entities:
@@ -42,6 +36,13 @@ async def extract_user(update: Update) -> tuple[int, str] | None:
                         return chat.id, chat.first_name or chat.username or str(chat.id)
                 except (BadRequest, Exception) as e:
                     pass
+
+    if message.reply_to_message:
+        reply_msg = message.reply_to_message
+        if not reply_msg.forum_topic_created and not reply_msg.forum_topic_edited and not reply_msg.forum_topic_closed:
+            target = reply_msg.from_user
+            if target and target.id:
+                return target.id, target.first_name or target.username or str(target.id)
 
     args = message.text.split()
     if len(args) < 2:
@@ -64,10 +65,6 @@ async def extract_user(update: Update) -> tuple[int, str] | None:
             return chat.id, chat.first_name or chat.username or str(chat.id)
     except (BadRequest, Exception) as e:
         pass
-
-    user = await Repository.get_user_by_username(identifier)
-    if user:
-        return user.telegram_id, user.first_name or user.username or str(user.telegram_id)
 
     return None
 

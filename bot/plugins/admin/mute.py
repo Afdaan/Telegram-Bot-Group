@@ -1,5 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from telegram import Update, ChatPermissions
+from telegram.error import BadRequest
 from telegram.ext import Application, CommandHandler, ContextTypes
 from bot.logger import get_logger
 from bot.utils.decorators import group_only, admin_only, bot_admin_required, skip_old_updates
@@ -21,7 +22,26 @@ async def mute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id, name = target
     chat_id = update.effective_chat.id
 
-    if not await check_target_not_admin(update, context, user_id):
+    if user_id == context.bot.id:
+        await update.effective_message.reply_text("I'm not going to mute myself!")
+        return
+
+    try:
+        member = await context.bot.get_chat_member(chat_id, user_id)
+    except BadRequest:
+        await update.effective_message.reply_text("This user isn't in the chat.")
+        return
+
+    if member.status in ("administrator", "creator"):
+        await update.effective_message.reply_text("⚠️ Cannot perform this action on an admin.")
+        return
+
+    if member.status in ("kicked", "left"):
+        await update.effective_message.reply_text("This user isn't in the chat.")
+        return
+
+    if member.can_send_messages is not None and not member.can_send_messages:
+        await update.effective_message.reply_text(f"🔇 {name} is already muted.")
         return
 
     duration = None
@@ -61,8 +81,24 @@ async def unmute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id, name = target
     chat_id = update.effective_chat.id
 
+    try:
+        member = await context.bot.get_chat_member(chat_id, user_id)
+    except BadRequest:
+        await update.effective_message.reply_text("This user isn't in the chat.")
+        return
 
+    if member.status in ("kicked", "left"):
+        await update.effective_message.reply_text(f"{name} isn't in the chat, unmuting won't help.")
+        return
 
+    if member.status in ("administrator", "creator"):
+        await update.effective_message.reply_text(f"✅ {name} is an admin, they already have full permissions.")
+        return
+
+    if (member.can_send_messages and member.can_send_other_messages
+            and member.can_send_polls and member.can_invite_users):
+        await update.effective_message.reply_text(f"✅ {name} already has full permissions.")
+        return
 
     permissions = ChatPermissions(
         can_send_messages=True,
@@ -72,16 +108,18 @@ async def unmute(update: Update, context: ContextTypes.DEFAULT_TYPE):
         can_invite_users=True,
     )
 
-    await context.bot.restrict_chat_member(
-        chat_id=chat_id,
-        user_id=user_id,
-        permissions=permissions,
-    )
-
-    await update.effective_message.reply_text(f"🔊 {name} has been unmuted.")
-    logger.info("UNMUTE %s → %s (%s) in %s",
-                update.effective_user.first_name, name, user_id,
-                update.effective_chat.title)
+    try:
+        await context.bot.restrict_chat_member(
+            chat_id=chat_id,
+            user_id=user_id,
+            permissions=permissions,
+        )
+        await update.effective_message.reply_text(f"🔊 {name} has been unmuted.")
+        logger.info("UNMUTE %s → %s (%s) in %s",
+                    update.effective_user.first_name, name, user_id,
+                    update.effective_chat.title)
+    except BadRequest as e:
+        await update.effective_message.reply_text(f"❌ Failed to unmute: {e}")
 
 
 def register(app: Application):

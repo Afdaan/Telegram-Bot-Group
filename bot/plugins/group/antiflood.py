@@ -1,6 +1,7 @@
 import time
 from collections import defaultdict
 from telegram import Update, ChatPermissions
+from telegram.error import BadRequest
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from bot.database.repo import Repository
 from bot.logger import get_logger
@@ -10,12 +11,12 @@ logger = get_logger(__name__)
 
 flood_tracker: dict[str, list[float]] = defaultdict(list)
 
+STALE_THRESHOLD = 60
+MIN_FLOOD_LIMIT = 3
+
 
 def _tracker_key(chat_id: int, user_id: int) -> str:
     return f"{chat_id}:{user_id}"
-
-
-STALE_THRESHOLD = 60
 
 
 async def check_flood(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -35,6 +36,7 @@ async def check_flood(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     member = await context.bot.get_chat_member(chat_id, user_id)
     if member.status in ("administrator", "creator"):
+        flood_tracker.pop(_tracker_key(chat_id, user_id), None)
         return
 
     settings = await Repository.get_or_create_settings(chat_id)
@@ -50,18 +52,37 @@ async def check_flood(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(flood_tracker[key]) >= settings.antiflood_limit:
         flood_tracker[key].clear()
 
-        await context.bot.restrict_chat_member(
-            chat_id=chat_id,
-            user_id=user_id,
-            permissions=ChatPermissions(can_send_messages=False),
-        )
+        try:
+            await context.bot.restrict_chat_member(
+                chat_id=chat_id,
+                user_id=user_id,
+                permissions=ChatPermissions(can_send_messages=False),
+            )
+            await update.effective_message.reply_text(
+                f"🚫 {update.effective_user.first_name} has been muted for flooding."
+            )
+            logger.info("ANTIFLOOD muted %s (%s) in %s",
+                        update.effective_user.first_name, user_id,
+                        update.effective_chat.title)
+        except BadRequest:
+            await Repository.update_settings(chat_id, antiflood_limit=0)
+            await update.effective_message.reply_text(
+                "⚠️ I don't have permission to restrict users. Anti-flood has been auto-disabled."
+            )
+            logger.warning("ANTIFLOOD auto-disabled in %s, no restrict permissions",
+                           update.effective_chat.title)
 
+
+@group_only
+async def flood(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    settings = await Repository.get_or_create_settings(update.effective_chat.id)
+    if settings.antiflood_limit <= 0:
+        await update.effective_message.reply_text("🌊 Anti-flood is currently disabled.")
+    else:
         await update.effective_message.reply_text(
-            f"🚫 {update.effective_user.first_name} has been muted for flooding."
+            f"🌊 Anti-flood is active: {settings.antiflood_limit} messages "
+            f"in {settings.antiflood_time} seconds."
         )
-        logger.info("ANTIFLOOD muted %s (%s) in %s",
-                    update.effective_user.first_name, user_id,
-                    update.effective_chat.title)
 
 
 @group_only
@@ -81,7 +102,7 @@ async def antiflood(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Usage:\n"
             f"  /antiflood on - Enable anti-flood\n"
             f"  /antiflood off - Disable anti-flood\n"
-            f"  /antiflood <limit> [window] - Set custom values"
+            f"  /antiflood <limit> [window] - Set custom values (min: {MIN_FLOOD_LIMIT})"
         )
         return
 
@@ -90,7 +111,7 @@ async def antiflood(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if action in ("on", "enable"):
         settings = await Repository.get_or_create_settings(chat_id)
-        limit = settings.antiflood_limit if settings.antiflood_limit > 0 else 5
+        limit = settings.antiflood_limit if settings.antiflood_limit >= MIN_FLOOD_LIMIT else 5
         window = settings.antiflood_time if settings.antiflood_time > 0 else 10
         await Repository.update_settings(chat_id, antiflood_limit=limit, antiflood_time=window)
         await update.effective_message.reply_text(
@@ -98,22 +119,33 @@ async def antiflood(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    if action in ("off", "disable"):
+    if action in ("off", "disable", "no", "0"):
         await Repository.update_settings(chat_id, antiflood_limit=0)
         await update.effective_message.reply_text("🌊 Anti-flood disabled.")
         return
 
-    limit = int(args[1]) if args[1].isdigit() else 0
+    if not action.isdigit():
+        await update.effective_message.reply_text("Usage: /antiflood <on|off|number>")
+        return
+
+    limit = int(action)
     window = int(args[2]) if len(args) > 2 and args[2].isdigit() else 10
 
-    await Repository.update_settings(chat_id, antiflood_limit=limit, antiflood_time=window)
-
     if limit <= 0:
+        await Repository.update_settings(chat_id, antiflood_limit=0)
         await update.effective_message.reply_text("🌊 Anti-flood disabled.")
-    else:
+        return
+
+    if limit < MIN_FLOOD_LIMIT:
         await update.effective_message.reply_text(
-            f"🌊 Anti-flood set: {limit} messages in {window} seconds."
+            f"⚠️ Anti-flood limit must be at least {MIN_FLOOD_LIMIT}, or 0 to disable."
         )
+        return
+
+    await Repository.update_settings(chat_id, antiflood_limit=limit, antiflood_time=window)
+    await update.effective_message.reply_text(
+        f"🌊 Anti-flood set: {limit} messages in {window} seconds."
+    )
 
 
 def register(app: Application):
@@ -121,4 +153,5 @@ def register(app: Application):
         filters.ALL & ~filters.COMMAND & ~filters.StatusUpdate.ALL,
         check_flood,
     ), group=-1)
+    app.add_handler(CommandHandler("flood", flood))
     app.add_handler(CommandHandler("antiflood", antiflood))

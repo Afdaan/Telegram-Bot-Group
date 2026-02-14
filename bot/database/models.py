@@ -14,6 +14,8 @@ class User(Base):
     telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
     username: Mapped[str | None] = mapped_column(String(255))
     first_name: Mapped[str | None] = mapped_column(String(255))
+    bio: Mapped[str | None] = mapped_column(Text)
+    about: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -36,6 +38,8 @@ class Group(Base):
 
     settings: Mapped["GroupSettings"] = relationship(back_populates="group", uselist=False)
     filters: Mapped[list["Filter"]] = relationship(back_populates="group", cascade="all, delete-orphan")
+    blacklists: Mapped[list["Blacklist"]] = relationship(back_populates="group", cascade="all, delete-orphan")
+    warn_filters: Mapped[list["WarnFilter"]] = relationship(back_populates="group", cascade="all, delete-orphan")
 
 
 class GroupSettings(Base):
@@ -52,6 +56,8 @@ class GroupSettings(Base):
     antiflood_limit: Mapped[int] = mapped_column(Integer, default=5)
     antiflood_time: Mapped[int] = mapped_column(Integer, default=10)
     slowmode_seconds: Mapped[int] = mapped_column(Integer, default=0)
+    report_enabled: Mapped[int] = mapped_column(Integer, default=1)
+    warn_action: Mapped[str] = mapped_column(String(10), default="ban")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -75,6 +81,20 @@ class Warning(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     user: Mapped["User"] = relationship(back_populates="warnings")
+
+
+class WarnFilter(Base):
+    __tablename__ = "warn_filters"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    group_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("groups_.telegram_id", ondelete="CASCADE")
+    )
+    keyword: Mapped[str] = mapped_column(String(255), nullable=False)
+    reply: Mapped[str] = mapped_column(String(512), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    group: Mapped["Group"] = relationship(back_populates="warn_filters")
 
 
 class StickerPack(Base):
@@ -104,3 +124,26 @@ class Filter(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     group: Mapped["Group"] = relationship(back_populates="filters")
+
+
+class Blacklist(Base):
+    __tablename__ = "blacklist"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    group_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("groups_.telegram_id", ondelete="CASCADE")
+    )
+    trigger: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    group: Mapped["Group"] = relationship(back_populates="blacklists")
+
+
+class RssFeed(Base):
+    __tablename__ = "rss_feeds"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    feed_link: Mapped[str] = mapped_column(String(512), nullable=False)
+    old_entry_link: Mapped[str | None] = mapped_column(String(512))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

@@ -2,6 +2,7 @@ import re
 from datetime import timedelta
 from telegram import Update
 from telegram.ext import ContextTypes
+from bot.database.repo import Repository
 
 
 DURATION_PATTERN = re.compile(r"(\d+)\s*([mhd])", re.IGNORECASE)
@@ -20,6 +21,12 @@ async def extract_user(update: Update) -> tuple[int, str] | None:
         target = message.reply_to_message.from_user
         return target.id, target.first_name or target.username or str(target.id)
 
+    if message.entities:
+        for entity in message.entities:
+            if entity.type == "text_mention" and entity.user:
+                user = entity.user
+                return user.id, user.first_name or user.username or str(user.id)
+
     args = message.text.split()
     if len(args) < 2:
         return None
@@ -31,6 +38,10 @@ async def extract_user(update: Update) -> tuple[int, str] | None:
 
     if identifier.isdigit():
         return int(identifier), identifier
+
+    user = await Repository.get_user_by_username(identifier)
+    if user:
+        return user.telegram_id, user.first_name or user.username or str(user.telegram_id)
 
     return None
 

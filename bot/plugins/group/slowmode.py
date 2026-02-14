@@ -9,6 +9,13 @@ logger = get_logger(__name__)
 DEFAULT_SLOWMODE = 30
 
 
+async def set_slowmode(bot, chat_id: int, seconds: int):
+    await bot.do_api_request(
+        "setChatSlowModeDelay",
+        api_kwargs={"chat_id": chat_id, "slow_mode_delay": seconds},
+    )
+
+
 @skip_old_updates
 @group_only
 @admin_only
@@ -37,7 +44,7 @@ async def slowmode(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if action in ("on", "enable"):
         settings = await Repository.get_or_create_settings(chat_id)
         seconds = settings.slowmode_seconds if settings.slowmode_seconds > 0 else DEFAULT_SLOWMODE
-        await context.bot.set_chat_slow_mode_delay(chat_id=chat_id, slow_mode_delay=seconds)
+        await set_slowmode(context.bot, chat_id, seconds)
         await Repository.update_settings(chat_id, slowmode_seconds=seconds)
         await update.effective_message.reply_text(f"🐢 Slowmode enabled: {seconds} second(s).")
         logger.info("SLOWMODE %s enabled %ds in %s",
@@ -45,7 +52,7 @@ async def slowmode(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if action in ("off", "disable"):
-        await context.bot.set_chat_slow_mode_delay(chat_id=chat_id, slow_mode_delay=0)
+        await set_slowmode(context.bot, chat_id, 0)
         await Repository.update_settings(chat_id, slowmode_seconds=0)
         await update.effective_message.reply_text("🐢 Slowmode disabled.")
         logger.info("SLOWMODE %s disabled in %s",
@@ -61,7 +68,7 @@ async def slowmode(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("Slowmode must be between 0 and 3600 seconds.")
         return
 
-    await context.bot.set_chat_slow_mode_delay(chat_id=chat_id, slow_mode_delay=seconds)
+    await set_slowmode(context.bot, chat_id, seconds)
     await Repository.update_settings(chat_id, slowmode_seconds=seconds)
 
     if seconds == 0:

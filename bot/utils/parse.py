@@ -20,19 +20,21 @@ async def extract_user(update: Update) -> tuple[int, str] | None:
 
     if message.reply_to_message:
         target = message.reply_to_message.from_user
-        return target.id, target.first_name or target.username or str(target.id)
+        if target and target.id:
+            return target.id, target.first_name or target.username or str(target.id)
 
     if message.entities:
         for entity in message.entities:
             if entity.type == "text_mention" and entity.user:
                 user = entity.user
-                return user.id, user.first_name or user.username or str(user.id)
+                if user and user.id:
+                    return user.id, user.first_name or user.username or str(user.id)
 
             if entity.type == "mention":
                 username = message.text[entity.offset + 1:entity.offset + entity.length]
                 try:
                     chat = await message.get_bot().get_chat(f"@{username}")
-                    if chat:
+                    if chat and chat.id:
                         return chat.id, chat.first_name or chat.username or str(chat.id)
                 except (BadRequest, Exception):
                     pass
@@ -47,7 +49,10 @@ async def extract_user(update: Update) -> tuple[int, str] | None:
         identifier = identifier[1:]
 
     if identifier.isdigit():
-        return int(identifier), identifier
+        user_id = int(identifier)
+        if user_id > 0:
+            return user_id, str(user_id)
+        return None
 
     try:
         chat = await message.get_bot().get_chat(f"@{identifier}")

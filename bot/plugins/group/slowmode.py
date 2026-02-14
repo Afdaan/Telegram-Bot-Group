@@ -12,7 +12,6 @@ DEFAULT_SLOWMODE = 30
 
 
 async def set_slowmode(bot, chat_id: int, seconds: int):
-    """Set slowmode delay for a supergroup. Only works in supergroups!"""
     url = f"https://api.telegram.org/bot{bot.token}/setChatSlowModeDelay"
     async with httpx.AsyncClient() as client:
         try:
@@ -22,7 +21,6 @@ async def set_slowmode(bot, chat_id: int, seconds: int):
                 error_desc = result.get("description", "Unknown error")
                 logger.error(f"Telegram API error: {error_desc}")
                 
-                # Handle specific error cases
                 if "not found" in error_desc.lower():
                     raise Exception("⚠️ Slowmode only works in supergroups. Please upgrade this group to a supergroup first.")
                 elif "not enough rights" in error_desc.lower() or "forbidden" in error_desc.lower():
@@ -46,7 +44,6 @@ async def slowmode(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = chat.id
     args = update.effective_message.text.split()
 
-    # Check if chat is a supergroup (slowmode only works in supergroups)
     if chat.type != "supergroup":
         await update.effective_message.reply_text(
             "⚠️ Slowmode only works in supergroups.\n"

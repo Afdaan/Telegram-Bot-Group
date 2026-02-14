@@ -1,9 +1,14 @@
 import re
 from datetime import timedelta
 from telegram import Update
+from telegram.constants import MessageEntityType
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
+from bot.logger import get_logger
+from bot.utils.user_cache import get_user_id_by_username
+from bot.database.repo import Repository
 
+logger = get_logger(__name__)
 
 DURATION_PATTERN = re.compile(r"(\d+)\s*([mhd])", re.IGNORECASE)
 
@@ -18,33 +23,48 @@ async def extract_user(update: Update) -> tuple[int, str] | None:
     message = update.effective_message
 
     if message.entities:
+        text_mentions = message.parse_entities([MessageEntityType.TEXT_MENTION])
+        for entity, _ in text_mentions.items():
+            if entity.user:
+                user = entity.user
+                return user.id, user.first_name or user.username or str(user.id)
+
         for entity in message.entities:
-            if entity.type == "text_mention" and entity.user:
+            if entity.type in ("text_mention", MessageEntityType.TEXT_MENTION) and entity.user:
                 user = entity.user
                 if user and user.id:
                     return user.id, user.first_name or user.username or str(user.id)
 
-            if entity.type == "mention":
-                start = entity.offset
-                end = entity.offset + entity.length
-                mention_text = message.text[start:end]
-                username = mention_text.lstrip('@')
-                
-                try:
-                    chat = await message.get_bot().get_chat(f"@{username}")
-                    if chat and chat.id:
-                        return chat.id, chat.first_name or chat.username or str(chat.id)
-                except (BadRequest, Exception) as e:
-                    pass
+        mentions = message.parse_entities([MessageEntityType.MENTION])
+        for _, mention_text in mentions.items():
+            username = (mention_text or "").lstrip("@").strip()
+            if not username:
+                continue
+
+            cached_id = get_user_id_by_username(username)
+            if cached_id:
+                return cached_id, f"@{username}"
+            
+            db_user = await Repository.get_user_by_username(username)
+            if db_user:
+                return db_user.telegram_id, f"@{username}"
 
     if message.reply_to_message:
         reply_msg = message.reply_to_message
-        if not reply_msg.forum_topic_created and not reply_msg.forum_topic_edited and not reply_msg.forum_topic_closed:
+        has_topic = (
+            reply_msg.forum_topic_created 
+            or reply_msg.forum_topic_edited 
+            or reply_msg.forum_topic_closed
+            or getattr(reply_msg, 'is_topic_message', False)
+        )
+        
+        if not has_topic:
             target = reply_msg.from_user
-            if target and target.id:
+            if target and target.id and target.id != 0:
                 return target.id, target.first_name or target.username or str(target.id)
 
-    args = message.text.split()
+    args = (message.text or message.caption or "").split()
+    
     if len(args) < 2:
         return None
 
@@ -59,12 +79,13 @@ async def extract_user(update: Update) -> tuple[int, str] | None:
             return user_id, str(user_id)
         return None
 
-    try:
-        chat = await message.get_bot().get_chat(f"@{identifier}")
-        if chat and chat.id:
-            return chat.id, chat.first_name or chat.username or str(chat.id)
-    except (BadRequest, Exception) as e:
-        pass
+    cached_id = get_user_id_by_username(identifier)
+    if cached_id:
+        return cached_id, f"@{identifier}"
+    
+    db_user = await Repository.get_user_by_username(identifier)
+    if db_user:
+        return db_user.telegram_id, f"@{identifier}"
 
     return None
 

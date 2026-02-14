@@ -4,12 +4,20 @@ from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 from bot.logger import get_logger
+from bot.utils.user_cache import remember_user
+from bot.database.repo import Repository
 
 logger = get_logger(__name__)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("Start command received from %s", update.effective_user.id)
     user = update.effective_user
+    
+    await Repository.upsert_user(
+        telegram_id=user.id,
+        username=user.username,
+        first_name=user.first_name
+    )
 
     if context.args and context.args[0] == "newpack":
         await update.effective_message.reply_html(
@@ -91,7 +99,37 @@ async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await message.edit_text(f"Pong! \U0001f3d3\nLatency: {elapsed_time}ms")
 
 async def debug_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    logger.info("Received update: %s", update.to_dict())
+    message = update.effective_message
+    if not message:
+        return
+
+    async def process_user(u):
+        if not u or u.is_bot:
+            return
+        remember_user(u)
+        await Repository.upsert_user(
+            telegram_id=u.id,
+            username=u.username,
+            first_name=u.first_name
+        )
+
+    await process_user(update.effective_user)
+    await process_user(message.from_user)
+
+    if message.reply_to_message:
+        await process_user(message.reply_to_message.from_user)
+
+    if getattr(message, "new_chat_members", None):
+        for user in message.new_chat_members:
+            await process_user(user)
+
+    if getattr(message, "left_chat_member", None):
+        await process_user(message.left_chat_member)
+
+    if message.entities:
+        for entity in message.entities:
+            if entity.type == "text_mention" and entity.user:
+                await process_user(entity.user)
 
 def register(app: Application):
     app.add_handler(CommandHandler("start", start))

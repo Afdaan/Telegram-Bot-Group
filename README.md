@@ -69,11 +69,7 @@ Running with Docker is highly recommended for reliability and ease of management
 | `/afk` | `/afk [reason]` | Mark yourself as AFK. Also triggers on `brb`. When mentioned or replied to, others are notified. Auto-clears when you send a message |
 | `s/find/replace` | `s/typo/fix` (reply) | Sed/regex: reply to a message to correct text. Flags: `i` (ignore case), `g` (global). Delimiters: `/` `:` `\|` `_` |
 | `/tr` | `/tr <lang>` (reply) or `/tr <lang> <text>` | Translate text using Google Translate. Auto-detects source language. Example: `/tr en`, `/tr ja hello world` |
-| `/userinfo` | `/userinfo [reply\|@user\|id]` | Detailed user info: ID, name, username, Telegram bio, group status, custom title, warnings, about, bio, profile photo, first seen date |
-| `/me` | `/me [reply\|@user\|id]` | View your or someone's "about" info |
-| `/setme` | `/setme <text>` | Set your own "about" info |
-| `/bio` | `/bio [reply\|@user\|id]` | View someone's bio (set by others) |
-| `/setbio` | `/setbio <text>` (reply) | Set someone else's bio. You can't set your own |
+| `/userinfo` | `/userinfo [reply\|@user\|id]` | Detailed user info: ID, name, username, Telegram bio, group status, custom title, warnings, profile photo |
 
 ### 👮 Admin (Group Only)
 

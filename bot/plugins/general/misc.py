@@ -37,11 +37,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/ping - Check bot latency\n"
         "/afk - Mark yourself as AFK\n"
         "/tr - Translate text\n"
-        "/userinfo - Detailed user info\n"
-        "/me - View your about info\n"
-        "/setme - Set your about info\n"
-        "/bio - View someone's bio\n"
-        "/setbio - Set someone's bio (reply)\n\n"
+        "/userinfo - Detailed user info\n\n"
 
         "<b>\U0001f46e Admin Only:</b>\n"
         "/ban, /unban - Ban/Unban user\n"

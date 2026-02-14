@@ -15,20 +15,27 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     command_text = message.text or ""
     command_parts = command_text.split(None, 1)
     has_args = len(command_parts) > 1
-    
-    logger.info(f"Userinfo command: has_args={has_args}, has_reply={bool(message.reply_to_message)}, entities={message.entities}")
-    
-    if has_args or message.reply_to_message:
+
+    reply_msg = message.reply_to_message
+    has_real_reply = bool(reply_msg) and not (
+        reply_msg.forum_topic_created
+        or reply_msg.forum_topic_edited
+        or reply_msg.forum_topic_closed
+        or getattr(reply_msg, 'is_topic_message', False)
+        or (reply_msg.from_user and reply_msg.from_user.id == 0)
+    )
+
+    if has_args or has_real_reply:
         target = await extract_user(update)
         if target:
             user_id, username = target
-            logger.info(f"Extracted user_id: {user_id} (username: {username})")
         else:
-            await message.reply_text("❌ User not found. Try replying to their message or use @username or user ID.")
+            await message.reply_text(
+                "❌ User not found. Try replying to their message or use @username or user ID."
+            )
             return
     else:
         user_id = update.effective_user.id
-        logger.info(f"Self userinfo for: {user_id} ({update.effective_user.username})")
 
     if not user_id or user_id <= 0:
         await message.reply_text("❌ Invalid user ID.")

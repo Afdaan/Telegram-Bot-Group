@@ -12,6 +12,11 @@ STICKER_SIZE = 512
 MAX_VIDEO_STICKER_BYTES = 256 * 1024
 
 
+VIDEO_SCALE_FILTER = (
+    f"scale='if(gte(iw,ih),{STICKER_SIZE},-2)':'if(gt(ih,iw),{STICKER_SIZE},-2)'"
+)
+
+
 async def run_ffmpeg(*args: str) -> tuple[int, str, str]:
     proc = await asyncio.create_subprocess_exec(
         "ffmpeg", *args,
@@ -59,7 +64,7 @@ async def video_to_webm(file_obj) -> io.BytesIO | None:
             retcode, _, stderr = await run_ffmpeg(
                 "-y", "-i", input_path,
                 "-t", "3",
-                "-vf", f"scale='if(gt(iw,ih),{STICKER_SIZE},-2)':'if(gt(ih,iw),{STICKER_SIZE},-2)',fps={fps}",
+                "-vf", f"{VIDEO_SCALE_FILTER},fps={fps}",
                 "-c:v", "libvpx-vp9",
                 "-b:v", bitrate,
                 "-an",

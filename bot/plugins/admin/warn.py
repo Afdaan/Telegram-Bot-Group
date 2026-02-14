@@ -2,12 +2,13 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from bot.database.repo import Repository
 from bot.logger import get_logger
-from bot.utils.decorators import group_only, admin_only, bot_admin_required
+from bot.utils.decorators import group_only, admin_only, bot_admin_required, skip_old_updates
 from bot.utils.parse import extract_user
 
 logger = get_logger(__name__)
 
 
+@skip_old_updates
 @group_only
 @admin_only
 @bot_admin_required
@@ -76,6 +77,7 @@ async def warns(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_text("\n".join(lines))
 
 
+@skip_old_updates
 @group_only
 @admin_only
 async def resetwarns(update: Update, context: ContextTypes.DEFAULT_TYPE):

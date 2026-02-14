@@ -15,10 +15,19 @@ def _tracker_key(chat_id: int, user_id: int) -> str:
     return f"{chat_id}:{user_id}"
 
 
+STALE_THRESHOLD = 60
+
+
 async def check_flood(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_message or not update.effective_user:
         return
     if update.effective_chat.type not in ("group", "supergroup"):
+        return
+
+    msg_time = update.effective_message.date.timestamp()
+    now = time.time()
+
+    if now - msg_time > STALE_THRESHOLD:
         return
 
     chat_id = update.effective_chat.id
@@ -33,11 +42,10 @@ async def check_flood(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     key = _tracker_key(chat_id, user_id)
-    now = time.time()
-    cutoff = now - settings.antiflood_time
+    cutoff = msg_time - settings.antiflood_time
 
     flood_tracker[key] = [t for t in flood_tracker[key] if t > cutoff]
-    flood_tracker[key].append(now)
+    flood_tracker[key].append(msg_time)
 
     if len(flood_tracker[key]) >= settings.antiflood_limit:
         flood_tracker[key].clear()
@@ -59,22 +67,45 @@ async def check_flood(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @group_only
 @admin_only
 async def antiflood(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
     args = update.effective_message.text.split()
+
     if len(args) < 2:
-        settings = await Repository.get_or_create_settings(update.effective_chat.id)
+        settings = await Repository.get_or_create_settings(chat_id)
+        status = "✅ Enabled" if settings.antiflood_limit > 0 else "❌ Disabled"
         await update.effective_message.reply_text(
             f"🌊 Anti-flood settings:\n"
+            f"  Status: {status}\n"
             f"  Limit: {settings.antiflood_limit} messages\n"
             f"  Window: {settings.antiflood_time} seconds\n\n"
-            f"Usage: /antiflood <limit> [window_seconds]"
+            f"Usage:\n"
+            f"  /antiflood on - Enable anti-flood\n"
+            f"  /antiflood off - Disable anti-flood\n"
+            f"  /antiflood <limit> [window] - Set custom values"
         )
+        return
+
+    action = args[1].lower()
+    await Repository.upsert_group(chat_id, title=update.effective_chat.title)
+
+    if action in ("on", "enable"):
+        settings = await Repository.get_or_create_settings(chat_id)
+        limit = settings.antiflood_limit if settings.antiflood_limit > 0 else 5
+        window = settings.antiflood_time if settings.antiflood_time > 0 else 10
+        await Repository.update_settings(chat_id, antiflood_limit=limit, antiflood_time=window)
+        await update.effective_message.reply_text(
+            f"🌊 Anti-flood enabled: {limit} messages in {window} seconds."
+        )
+        return
+
+    if action in ("off", "disable"):
+        await Repository.update_settings(chat_id, antiflood_limit=0)
+        await update.effective_message.reply_text("🌊 Anti-flood disabled.")
         return
 
     limit = int(args[1]) if args[1].isdigit() else 0
     window = int(args[2]) if len(args) > 2 and args[2].isdigit() else 10
 
-    chat_id = update.effective_chat.id
-    await Repository.upsert_group(chat_id, title=update.effective_chat.title)
     await Repository.update_settings(chat_id, antiflood_limit=limit, antiflood_time=window)
 
     if limit <= 0:

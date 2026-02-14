@@ -2,12 +2,13 @@ from datetime import datetime, timedelta
 from telegram import Update, ChatPermissions
 from telegram.ext import Application, CommandHandler, ContextTypes
 from bot.logger import get_logger
-from bot.utils.decorators import group_only, admin_only, bot_admin_required
+from bot.utils.decorators import group_only, admin_only, bot_admin_required, skip_old_updates
 from bot.utils.parse import extract_user, parse_duration, format_duration
 
 logger = get_logger(__name__)
 
 
+@skip_old_updates
 @group_only
 @admin_only
 @bot_admin_required
@@ -44,6 +45,7 @@ async def mute(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 update.effective_chat.title, duration_text)
 
 
+@skip_old_updates
 @group_only
 @admin_only
 @bot_admin_required

@@ -98,8 +98,8 @@ Examples: `30m` = 30 minutes, `2h` = 2 hours, `1d` = 1 day.
 | `/setrules` | `/setrules <rules text>` | Set group rules text |
 | `/setwelcome` | `/setwelcome <message>` | Set custom welcome message. Variables: `{name}` (user's name), `{group}` (group title) |
 | `/resetwelcome` | `/resetwelcome` | Reset welcome and goodbye messages to default |
-| `/slowmode` | `/slowmode <seconds>` | Set slowmode delay. Value: `0` – `3600`. Use `0` to disable |
-| `/antiflood` | `/antiflood <limit> [window]` | Configure anti-flood protection. `limit`: message count (use `0` to disable), `window`: time in seconds (default: `10`) |
+| `/slowmode` | `/slowmode on\|off` or `/slowmode <seconds>` | Enable/disable slowmode or set custom delay. `on` uses previous or default (30s). Value: `0` – `3600` |
+| `/antiflood` | `/antiflood on\|off` or `/antiflood <limit> [window]` | Enable/disable anti-flood or set custom values. `on` uses previous or default settings (5 msgs / 10s). `limit`: message count, `window`: seconds (default: `10`) |
 
 ### 🔖 Filters (Admin Only, Group Only)
 

@@ -28,6 +28,15 @@ async def extract_user(update: Update) -> tuple[int, str] | None:
                 user = entity.user
                 return user.id, user.first_name or user.username or str(user.id)
 
+            if entity.type == "mention":
+                username = message.text[entity.offset + 1:entity.offset + entity.length]
+                try:
+                    chat = await message.get_bot().get_chat(f"@{username}")
+                    if chat:
+                        return chat.id, chat.first_name or chat.username or str(chat.id)
+                except (BadRequest, Exception):
+                    pass
+
     args = message.text.split()
     if len(args) < 2:
         return None
@@ -40,16 +49,16 @@ async def extract_user(update: Update) -> tuple[int, str] | None:
     if identifier.isdigit():
         return int(identifier), identifier
 
-    user = await Repository.get_user_by_username(identifier)
-    if user:
-        return user.telegram_id, user.first_name or user.username or str(user.telegram_id)
-
     try:
         chat = await message.get_bot().get_chat(f"@{identifier}")
-        if chat and chat.type == "private":
+        if chat:
             return chat.id, chat.first_name or chat.username or str(chat.id)
     except (BadRequest, Exception):
         pass
+
+    user = await Repository.get_user_by_username(identifier)
+    if user:
+        return user.telegram_id, user.first_name or user.username or str(user.telegram_id)
 
     return None
 

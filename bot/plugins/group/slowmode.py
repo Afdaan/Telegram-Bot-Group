@@ -1,5 +1,6 @@
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
+import httpx
 from bot.database.repo import Repository
 from bot.logger import get_logger
 from bot.utils.decorators import group_only, admin_only, bot_admin_required, skip_old_updates
@@ -10,10 +11,12 @@ DEFAULT_SLOWMODE = 30
 
 
 async def set_slowmode(bot, chat_id: int, seconds: int):
-    await bot.do_api_request(
-        "setChatSlowModeDelay",
-        api_kwargs={"chat_id": chat_id, "slow_mode_delay": seconds},
-    )
+    url = f"https://api.telegram.org/bot{bot.token}/setChatSlowModeDelay"
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(url, json={"chat_id": chat_id, "slow_mode_delay": seconds})
+        result = resp.json()
+        if not result.get("ok"):
+            raise Exception(result.get("description", "Failed to set slowmode"))
 
 
 @skip_old_updates

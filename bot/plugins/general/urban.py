@@ -1,6 +1,6 @@
 import html
 import httpx
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
 from bot.logger import get_logger
 
@@ -47,11 +47,18 @@ async def urban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text += f"<b>Definition:</b>\n<i>{html.escape(definition)}</i>\n\n"
     
     if example:
-        text += f"<b>Example:</b>\n<i>{html.escape(example)}</i>\n\n"
+        text += f"<b>Example:</b>\n<i>{html.escape(example)}</i>"
         
-    text += f"🔗 <a href='{permalink}'>View on Urban Dictionary</a>"
+    reply_markup = InlineKeyboardMarkup([[
+        InlineKeyboardButton("🔗 View on Urban Dictionary", url=permalink)
+    ]])
 
-    await update.effective_message.reply_text(text, parse_mode="HTML", disable_web_page_preview=True)
+    await update.effective_message.reply_text(
+        text, 
+        parse_mode="HTML", 
+        disable_web_page_preview=True,
+        reply_markup=reply_markup
+    )
 
 
 def register(app: Application):

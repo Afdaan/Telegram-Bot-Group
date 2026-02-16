@@ -329,11 +329,19 @@ async def mypacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("You have no sticker packs.")
         return
 
-    text = "\U0001f3a8 Your sticker packs:\n\n"
+    text = f"🎨 <b>Sticker Packs by {html.escape(user.first_name)}</b>\n\nSelect a pack below to view or add them:"
+    
+    buttons = []
     for pack in packs:
-        text += f"\u2022 [{pack.pack_name}](https://t.me/addstickers/{pack.pack_name})\n"
+        label = pack.pack_name.replace(f"_{user.id}_by_{context.bot.username}", "")
+        buttons.append([InlineKeyboardButton(f"📦 {label}", url=f"https://t.me/addstickers/{pack.pack_name}")])
 
-    await update.effective_message.reply_text(text, parse_mode="Markdown", disable_web_page_preview=True)
+    reply_markup = InlineKeyboardMarkup(buttons)
+    await update.effective_message.reply_text(
+        text, 
+        parse_mode="HTML", 
+        reply_markup=reply_markup
+    )
 
 
 def register(app: Application):

@@ -1,5 +1,5 @@
 import html
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatPermissions
 from telegram.error import BadRequest
 from telegram.ext import Application, CommandHandler, ContextTypes
 from bot.database.repo import Repository
@@ -48,7 +48,7 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     lines = await _build_user_info_lines(update, context, chat, user_id)
-    await _send_user_info_response(message, user_id, lines)
+    await _send_user_info_response(update, context, user_id, lines)
 
 
 async def _build_user_info_lines(update, context, chat, user_id):
@@ -100,8 +100,32 @@ async def _add_group_info(lines, update, context, user_id):
             logger.warning(f"Failed to get warnings: {e}")
 
 
-async def _send_user_info_response(message, user_id, lines):
+async def _send_user_info_response(update, context, user_id, lines):
+    message = update.effective_message
+    reply_markup = None
+    
+    # Check if requester is admin to show management buttons
+    if update.effective_chat.type in ("group", "supergroup"):
+        try:
+            admin_check = await context.bot.get_chat_member(update.effective_chat.id, update.effective_user.id)
+            if admin_check.status in ("administrator", "creator"):
+                buttons = [
+                    [
+                        InlineKeyboardButton("🚫 Ban", callback_data=f"user_admin:ban:{user_id}"),
+                        InlineKeyboardButton("🔇 Mute", callback_data=f"user_admin:mute:{user_id}"),
+                    ],
+                    [
+                        InlineKeyboardButton("⚠️ Reset Warns", callback_data=f"user_admin:reset:{user_id}"),
+                        InlineKeyboardButton("🗑️ Close", callback_data="user_admin:close")
+                    ]
+                ]
+                reply_markup = InlineKeyboardMarkup(buttons)
+        except Exception:
+            pass
+
     reply_params = _prepare_reply_params(message)
+    if reply_markup:
+        reply_params["reply_markup"] = reply_markup
     
     try:
         photos = await message.get_bot().get_user_profile_photos(user_id, limit=1)
@@ -119,6 +143,45 @@ async def _send_user_info_response(message, user_id, lines):
     await message.reply_text(**reply_params)
 
 
+async def user_info_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data.split(":")
+    action = data[1]
+    
+    if action == "close":
+        await query.message.delete()
+        return
+
+    target_id = int(data[2])
+    chat_id = query.message.chat.id
+    
+    # Permission check for the person clicking
+    try:
+        member = await context.bot.get_chat_member(chat_id, query.from_user.id)
+        if member.status not in ("administrator", "creator"):
+            await query.answer("Admin only!", show_alert=True)
+            return
+    except Exception:
+        return
+
+    try:
+        if action == "ban":
+            await context.bot.ban_chat_member(chat_id, target_id)
+            await query.answer("Banned.")
+        elif action == "mute":
+            await context.bot.restrict_chat_member(chat_id, target_id, ChatPermissions(can_send_messages=False))
+            await query.answer("Muted.")
+        elif action == "reset":
+            await Repository.reset_warnings(target_id, chat_id)
+            await query.answer("Warnings reset.")
+            
+        # Refresh the info or update the text? Let's just update the message to reflect action
+        await query.message.edit_reply_markup(None)
+        await query.answer()
+    except Exception as e:
+        await query.answer(f"Error: {e}", show_alert=True)
+
+
 def _prepare_reply_params(message):
     params = {"parse_mode": "HTML"}
     if hasattr(message, 'message_thread_id') and message.message_thread_id:
@@ -127,5 +190,8 @@ def _prepare_reply_params(message):
 
 
 
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+
 def register(app: Application):
     app.add_handler(CommandHandler("userinfo", info))
+    app.add_handler(CallbackQueryHandler(user_info_callback, pattern=r"^user_admin:"))

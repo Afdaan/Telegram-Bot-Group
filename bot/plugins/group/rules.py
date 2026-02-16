@@ -1,4 +1,5 @@
-from telegram import Update
+import html
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
 from bot.database.repo import Repository
 from bot.logger import get_logger
@@ -16,7 +17,18 @@ async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("📜 No rules have been set for this group.")
         return
 
-    await update.effective_message.reply_text(f"📜 Rules for {update.effective_chat.title}:\n\n{settings.rules_text}")
+    text = f"📜 <b>Rules for {html.escape(update.effective_chat.title)}</b>\n\n{html.escape(settings.rules_text)}"
+    
+    # Optional: Add a button to read in PM if the rules are too long
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("🚀 Read in Private", url=f"https://t.me/{context.bot.username}?start=rules_{chat_id}")
+    ]])
+
+    await update.effective_message.reply_text(
+        text, 
+        parse_mode="HTML",
+        reply_markup=keyboard
+    )
 
 
 @group_only

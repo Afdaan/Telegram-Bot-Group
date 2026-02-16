@@ -1,7 +1,8 @@
+import html
 import time
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity
 from telegram.constants import ParseMode
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, CallbackQueryHandler, filters
 
 from bot.logger import get_logger
 from bot.utils.user_cache import remember_user
@@ -19,15 +20,31 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         first_name=user.first_name
     )
 
-    if context.args and context.args[0] == "newpack":
-        await update.effective_message.reply_html(
-            f"Hey {user.mention_html()}! \U0001f3a8\n\n"
-            "Let's create your first sticker pack!\n\n"
-            "<b>Send a photo or reply to a sticker, then use:</b>\n"
-            "<code>/newpack Your Pack Name</code>\n\n"
-            "After creating your pack, you can use /kang and /addsticker in any group!"
-        )
-        return
+    if context.args:
+        arg = context.args[0]
+        if arg == "newpack":
+            await update.effective_message.reply_html(
+                f"Hey {user.mention_html()}! \U0001f3a8\n\n"
+                "Let's create your first sticker pack!\n\n"
+                "<b>Send a photo or reply to a sticker, then use:</b>\n"
+                "<code>/newpack Your Pack Name</code>\n\n"
+                "After creating your pack, you can use /kang and /addsticker in any group!"
+            )
+            return
+        
+        if arg.startswith("rules_"):
+            try:
+                chat_id = int(arg.split("_")[1])
+                settings = await Repository.get_or_create_settings(chat_id)
+                if settings and settings.rules_text:
+                    group = await Repository.get_group(chat_id)
+                    title = group.title if group else "the group"
+                    await update.effective_message.reply_html(
+                        f"📜 <b>Rules for {html.escape(title)}</b>\n\n{html.escape(settings.rules_text)}"
+                    )
+                    return
+            except Exception as e:
+                logger.error(f"Error showing rules in start: {e}")
 
     await update.effective_message.reply_html(
         f"Hi {user.mention_html()}! \U0001f44b\n\n"
@@ -36,60 +53,101 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    help_text = (
-        "<b>Available Commands:</b>\n\n"
-
-        "<b>\U0001f916 General:</b>\n"
-        "/start - Check if I'm alive\n"
-        "/help - Show this message\n"
-        "/ping - Check bot latency\n"
-        "/afk - Mark yourself as AFK\n"
-        "/tr - Translate text\n"
-        "/userinfo - Detailed user info\n\n"
-
-        "<b>\U0001f46e Admin Only:</b>\n"
-        "/ban, /unban - Ban/Unban user\n"
-        "/kick - Kick user\n"
-        "/mute, /unmute - Mute/Unmute user\n"
-        "/timeout - Restrict user for a duration\n"
-        "/warn, /warns, /resetwarns - Warn management\n"
-        "/warnlimit - Set warn limit\n"
-        "/strongwarn - Ban or kick on warn limit\n"
-        "/addwarn, /nowarn, /warnlist - Warn filters\n"
-        "/purge - Delete messages\n"
-        "/pin, /unpin - Pin management\n\n"
-
-        "<b>\u2699\ufe0f Group Settings:</b>\n"
-        "/setup - Interactive setup wizard\n"
-        "/rules, /setrules - View/set rules\n"
-        "/setwelcome, /resetwelcome - Welcome message\n"
-        "/slowmode - Set slowmode delay\n"
-        "/antiflood, /flood - Anti-flood settings\n"
-        "/reports - Enable/disable reporting\n"
-        "/report - Report a message to admins\n\n"
-
-        "<b>\U0001f516 Filters & Blacklist:</b>\n"
-        "/filter, /stop, /filters - Auto-response filters\n"
-        "/blacklist - View blacklisted words\n"
-        "/addblacklist, /rmblacklist - Manage blacklist\n\n"
-
-        "<b>\U0001f3a8 Stickers:</b>\n"
-        "/kang - Add sticker to your pack\n"
-        "/newpack - Create new sticker pack\n"
-        "/addsticker - Add sticker to named pack\n"
-        "/delsticker - Remove sticker from pack\n"
-        "/mypacks - List your packs\n"
-        "/tophoto - Convert sticker to photo\n"
-        "/togif - Convert video sticker to GIF\n"
-        "/tosticker - Convert GIF to video sticker\n\n"
-
-        "<b>\U0001f4e1 RSS Feeds:</b>\n"
-        "/rss - Preview an RSS feed\n"
-        "/listrss - List subscriptions\n"
-        "/addrss - Subscribe to a feed\n"
-        "/removerss - Unsubscribe from a feed"
+    text = (
+        "👋 <b>Welcome to Alisa Help!</b>\n\n"
+        "I am a powerful group management bot. Select a category below to see my commands."
     )
-    await update.effective_message.reply_text(help_text, parse_mode=ParseMode.HTML)
+    
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🤖 Admin", callback_data="help_cat:admin"),
+            InlineKeyboardButton("⚙️ Group", callback_data="help_cat:group"),
+        ],
+        [
+            InlineKeyboardButton("✨ General", callback_data="help_cat:general"),
+            InlineKeyboardButton("🎨 Sticker", callback_data="help_cat:sticker"),
+        ],
+        [
+            InlineKeyboardButton("📡 RSS & Filters", callback_data="help_cat:rss")
+        ],
+        [
+            InlineKeyboardButton("🗑️ Close Menu", callback_data="help_cat:close")
+        ]
+    ])
+    
+    if update.callback_query:
+        await update.callback_query.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+    else:
+        await update.effective_message.reply_text(text, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+
+async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    category = query.data.split(":")[1]
+
+    if category == "close":
+        await query.message.delete()
+        return
+
+    help_map = {
+        "admin": (
+            "👮 <b>Admin Commands:</b>\n\n"
+            "/ban, /unban - Ban/Unban user\n"
+            "/kick - Kick user\n"
+            "/mute, /unmute - Mute/Unmute user\n"
+            "/timeout - Restrict user for a duration\n"
+            "/purge - Delete messages\n"
+            "/pin, /unpin - Pin management\n"
+            "/warn, /unwarn - Warn user\n"
+            "/warns, /resetwarns - View/Reset warns\n"
+            "/warnlimit - Set warn limit\n"
+            "/strongwarn - Ban/Kick on limit"
+        ),
+        "group": (
+            "⚙️ <b>Group Settings:</b>\n\n"
+            "/setup - Configuration wizard\n"
+            "/rules, /setrules - Rules management\n"
+            "/setwelcome, /resetwelcome - Welcome msg\n"
+            "/slowmode - Chat slowmode\n"
+            "/antiflood, /flood - Flood protection\n"
+            "/reports - Toggle reporting\n"
+            "/report or @admin - Report msg"
+        ),
+        "general": (
+            "✨ <b>General Commands:</b>\n\n"
+            "/start - Start & Deep links\n"
+            "/ping - Latency check\n"
+            "/afk - Set AFK status\n"
+            "/tr - Translate text\n"
+            "/ud - Urban Dictionary\n"
+            "/userinfo - Detailed profile"
+        ),
+        "sticker": (
+            "🎨 <b>Sticker Commands:</b>\n\n"
+            "/kang - Add to default pack\n"
+            "/newpack - Create new pack\n"
+            "/addsticker - Add to named pack\n"
+            "/delsticker - Delete from pack\n"
+            "/mypacks - List your packs\n"
+            "/tophoto, /togif, /tosticker - Converts"
+        ),
+        "rss": (
+            "📡 <b>RSS & Filters:</b>\n\n"
+            "/addrss, /removerss, /listrss - RSS\n"
+            "/filter, /stop, /filters - Responses\n"
+            "/blacklist, /addblacklist - Blacklist"
+        )
+    }
+
+    keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="help_cat:main")]])
+    
+    if category == "main":
+        await help_command(update, context)
+        await query.answer()
+        return
+
+    text = help_map.get(category, "Select a category.")
+    await query.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=keyboard)
+    await query.answer()
 
 async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
     start_time = time.time()
@@ -134,5 +192,6 @@ async def debug_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def register(app: Application):
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CallbackQueryHandler(help_callback, pattern=r"^help_cat:"))
     app.add_handler(CommandHandler("ping", ping))
     app.add_handler(MessageHandler(filters.ALL, debug_all), group=1)

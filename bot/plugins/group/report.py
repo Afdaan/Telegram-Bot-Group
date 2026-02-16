@@ -1,5 +1,5 @@
 import html
-from telegram import Update, ChatMember
+from telegram import Update, ChatMember, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest, Forbidden
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from telegram.helpers import mention_html
@@ -70,7 +70,19 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if admin_mentions:
         report_text += f"\n\n👮 {' '.join(admin_mentions)}"
 
-    await message.reply_to_message.reply_text(report_text, parse_mode="HTML")
+    reply_markup = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🚫 Ban", callback_data=f"admin_report:ban:{reported_user.id}:{chat.id}"),
+            InlineKeyboardButton("🔇 Mute", callback_data=f"admin_report:mute:{reported_user.id}:{chat.id}"),
+        ],
+        [
+            InlineKeyboardButton("🗑️ Delete", callback_data=f"admin_report:del:{message.reply_to_message.message_id}:{chat.id}"),
+            InlineKeyboardButton("✅ Ignore", callback_data="admin_report:ignore")
+        ]
+    ])
+
+    # In group response (optional, maybe keep it clean with just mentions)
+    # await message.reply_to_message.reply_text(report_text, parse_mode="HTML")
 
     for admin in admins:
         if admin.user.is_bot:
@@ -87,12 +99,20 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if chat.username:
                 dm_text += (
                     f"\n\n<a href=\"https://t.me/{chat.username}/{message.reply_to_message.message_id}\">"
-                    f"Go to message</a>"
+                    f"🔗 Go to message</a>"
                 )
 
-            await context.bot.send_message(admin.user.id, dm_text, parse_mode="HTML")
+            await context.bot.send_message(
+                admin.user.id, 
+                dm_text, 
+                parse_mode="HTML",
+                reply_markup=reply_markup
+            )
         except (BadRequest, Forbidden):
             pass
+
+    # Success message in group
+    await message.reply_text("✅ Admins have been notified.")
 
     logger.info("REPORT %s reported %s in %s",
                 user.first_name, reported_user.first_name, chat.title)
@@ -129,9 +149,40 @@ async def reports_setting(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("Usage: /reports <on|off>")
 
 
+async def report_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data.split(":")
+    
+    if data[1] == "ignore":
+        await query.message.edit_text(f"{query.message.text}\n\n✅ <i>Report Ignored</i>", parse_mode="HTML")
+        await query.answer("Ignored.")
+        return
+
+    action = data[1]
+    target_id = int(data[2])
+    chat_id = int(data[3])
+
+    try:
+        if action == "ban":
+            await context.bot.ban_chat_member(chat_id, target_id)
+            await query.answer("User Banned.", show_alert=True)
+        elif action == "mute":
+            from telegram import ChatPermissions
+            await context.bot.restrict_chat_member(chat_id, target_id, ChatPermissions(can_send_messages=False))
+            await query.answer("User Muted.", show_alert=True)
+        elif action == "del":
+            await context.bot.delete_message(chat_id, target_id)
+            await query.answer("Message Deleted.")
+            
+        await query.message.edit_text(f"{query.message.text}\n\n✅ <i>Action Taken: {action.upper()}</i>", parse_mode="HTML")
+    except Exception as e:
+        await query.answer(f"Error: {e}", show_alert=True)
+
+
 def register(app: Application):
     app.add_handler(CommandHandler("report", report), group=REPORT_GROUP)
     app.add_handler(CommandHandler("reports", reports_setting))
+    app.add_handler(CallbackQueryHandler(report_callback, pattern=r"^admin_report:"))
     app.add_handler(MessageHandler(
         filters.Regex(r"(?i)@admin(s)?") & filters.ChatType.GROUPS,
         report,

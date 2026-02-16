@@ -6,7 +6,8 @@ from bot.logger import get_logger
 
 logger = get_logger(__name__)
 
-URBAN_API = "http://api.urbandictionary.com/v0/define"
+URBAN_API = "https://api.urbandictionary.com/v0/define"
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
 
 async def urban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
@@ -15,8 +16,12 @@ async def urban(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     term = " ".join(context.args)
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(URBAN_API, params={"term": term})
+        async with httpx.AsyncClient(headers={"User-Agent": USER_AGENT}) as client:
+            response = await client.get(URBAN_API, params={"term": term}, timeout=10.0)
+            if response.status_code != 200:
+                logger.error(f"Urban Dictionary API returned status {response.status_code}")
+                await update.effective_message.reply_text("❌ Urban Dictionary is currently unavailable.")
+                return
             data = response.json()
     except Exception as e:
         logger.error(f"Error fetching from Urban Dictionary: {e}")

@@ -37,8 +37,6 @@ async def urban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     word = result.get("word", term)
     definition = result.get("definition", "No definition.")
     example = result.get("example", "")
-    thumbs_up = result.get("thumbs_up", 0)
-    thumbs_down = result.get("thumbs_down", 0)
     permalink = result.get("permalink")
 
     definition = definition.replace("[", "").replace("]", "")
@@ -51,7 +49,6 @@ async def urban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if example:
         text += f"<b>Example:</b>\n<i>{html.escape(example)}</i>\n\n"
         
-    text += f"👍 {thumbs_up} | 👎 {thumbs_down}\n"
     text += f"🔗 <a href='{permalink}'>View on Urban Dictionary</a>"
 
     await update.effective_message.reply_text(text, parse_mode="HTML", disable_web_page_preview=True)

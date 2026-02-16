@@ -51,14 +51,13 @@ async def extract_user(update: Update) -> tuple[int, str] | None:
 
     if message.reply_to_message:
         reply_msg = message.reply_to_message
-        has_topic = (
+        is_service_topic = (
             reply_msg.forum_topic_created 
             or reply_msg.forum_topic_edited 
             or reply_msg.forum_topic_closed
-            or getattr(reply_msg, 'is_topic_message', False)
         )
         
-        if not has_topic:
+        if not is_service_topic:
             target = reply_msg.from_user
             if target and target.id and target.id != 0:
                 return target.id, target.first_name or target.username or str(target.id)

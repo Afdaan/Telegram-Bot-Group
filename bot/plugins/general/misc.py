@@ -68,9 +68,11 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🎨 Sticker", callback_data="help_cat:sticker"),
         ],
         [
-            InlineKeyboardButton("📡 RSS & Filters", callback_data="help_cat:rss")
+            InlineKeyboardButton("📡 RSS & Filters", callback_data="help_cat:rss"),
+            InlineKeyboardButton("🛠️ Tools", callback_data="help_cat:tools"),
         ],
         [
+            InlineKeyboardButton("\U0001f3ad Entertainment", callback_data="help_cat:entertainment"),
             InlineKeyboardButton("🗑️ Close Menu", callback_data="help_cat:close")
         ]
     ])
@@ -117,7 +119,6 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/start - Start & Deep links\n"
             "/ping - Latency check\n"
             "/afk - Set AFK status\n"
-            "/tr - Translate text\n"
             "/ud - Urban Dictionary\n"
             "/userinfo - Detailed profile"
         ),
@@ -135,6 +136,26 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/addrss, /removerss, /listrss - RSS\n"
             "/filter, /stop, /filters - Responses\n"
             "/blacklist, /addblacklist - Blacklist"
+        ),
+        "tools": (
+            "🛠️ <b>Tool Commands:</b>\n\n"
+            "/tr - Translate text\n"
+            "/wiki - Search Wikipedia\n"
+            "/calc - Calculate expressions\n"
+            "/qr - Generate QR Code"
+        ),
+        "entertainment": (
+            "\U0001f3ad <b>Entertainment Commands:</b>\n\n"
+            "/slap - Slap someone with an object\n"
+            "/decide - Make a choice\n"
+            "/pp - Check someone's pp size\n"
+            "/ship - Check love compatibility\n"
+            "/rate - Self-explanatory rating\n"
+            "/ball8 - Ask the magic 8-ball\n"
+            "/roll - Roll a dice\n"
+            "/kill - Kill someone (fake)\n"
+            "/iq - Check someone's IQ\n"
+            "/mock - Mock some text"
         )
     }
 

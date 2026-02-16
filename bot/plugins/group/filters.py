@@ -157,8 +157,7 @@ async def filter_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     trigger = query.data.split(":", 1)[1]
     chat_id = update.effective_chat.id
-    
-    # Simple admin check
+
     member = await context.bot.get_chat_member(chat_id, update.effective_user.id)
     if member.status not in ("administrator", "creator"):
         await query.answer("Admin only!", show_alert=True)
@@ -167,7 +166,6 @@ async def filter_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     deleted = await Repository.remove_filter(chat_id, trigger)
     if deleted:
         await query.answer(f"Filter '{trigger}' removed.")
-        # Refresh the list
         await get_filters_list(update, context)
         try:
              await query.message.delete()

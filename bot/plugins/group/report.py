@@ -81,9 +81,6 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ])
 
-    # In group response (optional, maybe keep it clean with just mentions)
-    # await message.reply_to_message.reply_text(report_text, parse_mode="HTML")
-
     for admin in admins:
         if admin.user.is_bot:
             continue
@@ -111,7 +108,6 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except (BadRequest, Forbidden):
             pass
 
-    # Success message in group
     await message.reply_text("✅ Admins have been notified.")
 
     logger.info("REPORT %s reported %s in %s",

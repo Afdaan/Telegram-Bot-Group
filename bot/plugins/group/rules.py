@@ -19,7 +19,6 @@ async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = f"📜 <b>Rules for {html.escape(update.effective_chat.title)}</b>\n\n{html.escape(settings.rules_text)}"
     
-    # Optional: Add a button to read in PM if the rules are too long
     keyboard = InlineKeyboardMarkup([[
         InlineKeyboardButton("🚀 Read in Private", url=f"https://t.me/{context.bot.username}?start=rules_{chat_id}")
     ]])

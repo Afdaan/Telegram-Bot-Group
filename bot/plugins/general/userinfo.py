@@ -103,8 +103,7 @@ async def _add_group_info(lines, update, context, user_id):
 async def _send_user_info_response(update, context, user_id, lines):
     message = update.effective_message
     reply_markup = None
-    
-    # Check if requester is admin to show management buttons
+
     if update.effective_chat.type in ("group", "supergroup"):
         try:
             admin_check = await context.bot.get_chat_member(update.effective_chat.id, update.effective_user.id)
@@ -155,7 +154,6 @@ async def user_info_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     target_id = int(data[2])
     chat_id = query.message.chat.id
     
-    # Permission check for the person clicking
     try:
         member = await context.bot.get_chat_member(chat_id, query.from_user.id)
         if member.status not in ("administrator", "creator"):
@@ -174,8 +172,7 @@ async def user_info_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elif action == "reset":
             await Repository.reset_warnings(target_id, chat_id)
             await query.answer("Warnings reset.")
-            
-        # Refresh the info or update the text? Let's just update the message to reflect action
+
         await query.message.edit_reply_markup(None)
         await query.answer()
     except Exception as e:

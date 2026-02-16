@@ -21,7 +21,6 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_msg.forum_topic_created
         or reply_msg.forum_topic_edited
         or reply_msg.forum_topic_closed
-        or getattr(reply_msg, 'is_topic_message', False)
         or (reply_msg.from_user and reply_msg.from_user.id == 0)
     )
 

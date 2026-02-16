@@ -163,6 +163,28 @@ async def resetwarns(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 update.effective_chat.title, deleted)
 
 
+@skip_old_updates
+@group_only
+@admin_only
+async def unwarn(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    target = await extract_user(update)
+    if not target:
+        await update.effective_message.reply_text("Usage: /unwarn <reply|@user|id>")
+        return
+
+    user_id, name = target
+    chat_id = update.effective_chat.id
+
+    removed = await Repository.remove_last_warning(user_id, chat_id)
+    if removed:
+        await update.effective_message.reply_text(f"✅ Removed latest warning for {name}.")
+        logger.info("UNWARN %s → %s (%s) in %s",
+                    update.effective_user.first_name, name, user_id,
+                    update.effective_chat.title)
+    else:
+        await update.effective_message.reply_text(f"❌ {name} has no warnings.")
+
+
 @group_only
 @admin_only
 async def warnlimit(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -329,6 +351,7 @@ async def check_warn_filters(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 def register(app: Application):
     app.add_handler(CommandHandler("warn", warn))
+    app.add_handler(CommandHandler("unwarn", unwarn))
     app.add_handler(CommandHandler("warns", warns))
     app.add_handler(CommandHandler("resetwarns", resetwarns))
     app.add_handler(CommandHandler("warnlimit", warnlimit))

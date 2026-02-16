@@ -38,13 +38,10 @@ async def column_exists(conn, table_name: str, column_name: str) -> bool:
     except:
         return False
 
-
 async def run_migrations():
     print(f"🔌 Connecting to database {DB_HOST}:{DB_PORT}/{DB_NAME}...")
     try:
         engine = create_async_engine(DB_URL, echo=False)
-        
-        # Test connection first
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
         print("✅ Connection successful.")
@@ -52,21 +49,24 @@ async def run_migrations():
         print(f"❌ Failed to connect: {e}")
         return
 
-    migrations = [
-        "migrations/002_blacklist.sql",
-        "migrations/003_report_setting.sql",
-        "migrations/004_rss_feeds.sql",
-        "migrations/005_userinfo.sql",
-        "migrations/006_warn_upgrade.sql"
+    # Automatically scan migrations directory
+    migration_dir = "migrations"
+    if not os.path.exists(migration_dir):
+        print(f"❌ Directory '{migration_dir}' not found.")
+        return
+
+    # List .sql files and sort them
+    migration_files = [
+        os.path.join(migration_dir, f) 
+        for f in os.listdir(migration_dir) 
+        if f.endswith(".sql")
     ]
+    migration_files.sort()
 
     async with engine.begin() as conn:
-        for migration_file in migrations:
-            print(f"\n📄 Checking {migration_file}...")
-            if not os.path.exists(migration_file):
-                print(f"   ⚠️ File not found: {migration_file}, skipping.")
-                continue
-
+        for migration_file in migration_files:
+            print(f"\n📄 Processing {migration_file}...")
+            
             with open(migration_file, "r", encoding="utf-8") as f:
                 content = f.read()
                 # Split by semicolon but ignore empty lines
@@ -75,9 +75,8 @@ async def run_migrations():
             print(f"   🚀 Running {len(sql_commands)} commands...")
             for i, cmd in enumerate(sql_commands, 1):
                 try:
-                    # Check if this is an ALTER TABLE ADD COLUMN command
+                    # Specific check for ADD COLUMN to prevent noisy errors
                     if "ALTER TABLE" in cmd.upper() and "ADD COLUMN" in cmd.upper():
-                        # Extract table and column names
                         table_match = re.search(r"ALTER TABLE\s+`?(\w+)`?", cmd, re.IGNORECASE)
                         col_match = re.search(r"ADD COLUMN\s+`?(\w+)`?", cmd, re.IGNORECASE)
                         
@@ -91,10 +90,10 @@ async def run_migrations():
                     
                     await conn.execute(text(cmd))
                 except Exception as e:
-                    # Check for "Duplicate column" or "Table exists" errors
+                    # Common MySQL errors to ignore during migrations
                     err_str = str(e).lower()
                     if "1060" in err_str or "duplicate column" in err_str:
-                        print(f"      Cmd {i}: Create/Alter skipped (already exists).")
+                        print(f"      Cmd {i}: Skipped (column already exists).")
                     elif "1050" in err_str or "already exists" in err_str:
                          print(f"      Cmd {i}: Table skipped (already exists).")
                     else:
@@ -102,7 +101,7 @@ async def run_migrations():
             print(f"   ✅ {migration_file} processed.")
 
     await engine.dispose()
-    print("\n🎉 All migrations finished successfully!")
+    print("\n🎉 Automated migrations finished successfully!")
 
 if __name__ == "__main__":
     if sys.platform == "win32":

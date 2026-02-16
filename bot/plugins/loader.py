@@ -13,6 +13,8 @@ PLUGIN_PACKAGES = [
     "bot.plugins.group",
     "bot.plugins.setup",
     "bot.plugins.general",
+    "bot.plugins.entertainment",
+    "bot.plugins.tools",
 ]
 
 

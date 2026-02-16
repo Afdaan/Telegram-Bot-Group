@@ -15,7 +15,6 @@ async def calculate(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     try:
-        # Evaluate safely by restricting characters
         result = eval(expression, {"__builtins__": None}, {})
         await update.effective_message.reply_html(f"🔢 <b>Expression:</b> <code>{html.escape(expression)}</code>\n✅ <b>Result:</b> <code>{result}</code>")
     except Exception as e:

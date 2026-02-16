@@ -1,7 +1,7 @@
 import html
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatPermissions
 from telegram.error import BadRequest
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from bot.database.repo import Repository
 from bot.utils.parse import extract_user
 from bot.logger import get_logger
@@ -190,7 +190,7 @@ def _prepare_reply_params(message):
 
 
 
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+
 
 def register(app: Application):
     app.add_handler(CommandHandler("userinfo", info))

@@ -1,5 +1,6 @@
 import io
 import re
+import html
 from telegram import Update, InputSticker, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
 from telegram.error import TelegramError

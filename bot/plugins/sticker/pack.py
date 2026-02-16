@@ -1,5 +1,6 @@
 import io
 import re
+import html
 from telegram import Update, InputSticker, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
 from telegram.error import TelegramError
@@ -156,8 +157,17 @@ async def kang(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.delete()
 
     except Exception as e:
-        logger.error(f"Error kanging sticker: {e}")
-        await msg.edit_text(f"Failed: {e}")
+        error_str = str(e).lower()
+        if "emoji" in error_str or "unicode" in error_str:
+            await msg.edit_text(
+                "❌ <b>Invalid Emoji</b>\n\n"
+                "Please provide a valid unicode emoji. Example:\n"
+                "<code>/kang 🖕</code>",
+                parse_mode="HTML"
+            )
+        else:
+            logger.error(f"Error kanging sticker: {e}")
+            await msg.edit_text(f"Failed: {e}")
 
 
 async def newpack(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -320,11 +330,19 @@ async def mypacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("You have no sticker packs.")
         return
 
-    text = "\U0001f3a8 Your sticker packs:\n\n"
+    text = f"🎨 <b>Sticker Packs by {html.escape(user.first_name)}</b>\n\nSelect a pack below to view or add them:"
+    
+    buttons = []
     for pack in packs:
-        text += f"\u2022 [{pack.pack_name}](https://t.me/addstickers/{pack.pack_name})\n"
+        label = pack.pack_name.replace(f"_{user.id}_by_{context.bot.username}", "")
+        buttons.append([InlineKeyboardButton(f"📦 {label}", url=f"https://t.me/addstickers/{pack.pack_name}")])
 
-    await update.effective_message.reply_text(text, parse_mode="Markdown", disable_web_page_preview=True)
+    reply_markup = InlineKeyboardMarkup(buttons)
+    await update.effective_message.reply_text(
+        text, 
+        parse_mode="HTML", 
+        reply_markup=reply_markup
+    )
 
 
 def register(app: Application):

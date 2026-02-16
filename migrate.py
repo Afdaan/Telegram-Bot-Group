@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Build DB URL from separate env vars
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "3306")
 DB_USER = os.getenv("DB_USER", "root")
@@ -20,7 +19,7 @@ if not DB_USER or not DB_NAME:
     print("❌ Missing DB credentials in .env")
     sys.exit(1)
 
-# URL-encode the password to handle special characters
+
 encoded_password = quote(DB_PASSWORD, safe='')
 DB_URL = f"mysql+aiomysql://{DB_USER}:{encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
@@ -49,13 +48,13 @@ async def run_migrations():
         print(f"❌ Failed to connect: {e}")
         return
 
-    # Automatically scan migrations directory
+
     migration_dir = "migrations"
     if not os.path.exists(migration_dir):
         print(f"❌ Directory '{migration_dir}' not found.")
         return
 
-    # List .sql files and sort them
+
     migration_files = [
         os.path.join(migration_dir, f) 
         for f in os.listdir(migration_dir) 
@@ -69,13 +68,11 @@ async def run_migrations():
             
             with open(migration_file, "r", encoding="utf-8") as f:
                 content = f.read()
-                # Split by semicolon but ignore empty lines
                 sql_commands = [cmd.strip() for cmd in content.split(";") if cmd.strip()]
             
             print(f"   🚀 Running {len(sql_commands)} commands...")
             for i, cmd in enumerate(sql_commands, 1):
                 try:
-                    # Specific check for ADD COLUMN to prevent noisy errors
                     if "ALTER TABLE" in cmd.upper() and "ADD COLUMN" in cmd.upper():
                         table_match = re.search(r"ALTER TABLE\s+`?(\w+)`?", cmd, re.IGNORECASE)
                         col_match = re.search(r"ADD COLUMN\s+`?(\w+)`?", cmd, re.IGNORECASE)
@@ -90,7 +87,6 @@ async def run_migrations():
                     
                     await conn.execute(text(cmd))
                 except Exception as e:
-                    # Common MySQL errors to ignore during migrations
                     err_str = str(e).lower()
                     if "1060" in err_str or "duplicate column" in err_str:
                         print(f"      Cmd {i}: Skipped (column already exists).")

@@ -1,7 +1,7 @@
 import re
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from bot.database.repo import Repository
 from bot.logger import get_logger
 from bot.utils.decorators import group_only, admin_only
@@ -20,11 +20,36 @@ async def blacklist(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("📝 No blacklisted words in this group.")
         return
 
-    lines = ["🚫 <b>Blacklisted words:</b>\n"]
+    text = f"🚫 <b>Blacklisted Words in {update.effective_chat.title}</b>\n\nClick a button to remove it from the list:"
+    
+    buttons = []
     for trigger in sorted(triggers):
-        lines.append(f" • <code>{trigger}</code>")
+        buttons.append([InlineKeyboardButton(f"🗑️ {trigger}", callback_data=f"rm_bl:{trigger}")])
+    
+    reply_markup = InlineKeyboardMarkup(buttons)
+    await update.effective_message.reply_text(text, parse_mode="HTML", reply_markup=reply_markup)
 
-    await update.effective_message.reply_text("\n".join(lines), parse_mode="HTML")
+
+async def blacklist_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    trigger = query.data.split(":", 1)[1]
+    chat_id = update.effective_chat.id
+    
+    member = await context.bot.get_chat_member(chat_id, update.effective_user.id)
+    if member.status not in ("administrator", "creator"):
+        await query.answer("Admin only!", show_alert=True)
+        return
+
+    deleted = await Repository.remove_blacklist(chat_id, trigger)
+    if deleted:
+        await query.answer(f"'{trigger}' removed from blacklist.")
+        await blacklist(update, context)
+        try:
+             await query.message.delete()
+        except:
+             pass
+    else:
+        await query.answer("Not found.")
 
 
 @group_only
@@ -136,6 +161,7 @@ def register(app: Application):
     app.add_handler(CommandHandler("blacklist", blacklist))
     app.add_handler(CommandHandler("addblacklist", add_blacklist))
     app.add_handler(CommandHandler(["rmblacklist", "unblacklist"], remove_blacklist))
+    app.add_handler(CallbackQueryHandler(blacklist_callback, pattern=r"^rm_bl:"))
     app.add_handler(MessageHandler(
         (filters.TEXT | filters.CAPTION) & filters.ChatType.GROUPS & ~filters.COMMAND,
         check_blacklist,

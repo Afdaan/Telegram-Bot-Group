@@ -145,5 +145,6 @@ def register(app: Application):
         fallbacks=[CommandHandler("cancel", cancel)],
         per_chat=True,
         per_user=True,
+        per_message=True,
     )
     app.add_handler(conv_handler)

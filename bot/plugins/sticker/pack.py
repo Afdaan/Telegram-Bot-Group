@@ -156,8 +156,17 @@ async def kang(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.delete()
 
     except Exception as e:
-        logger.error(f"Error kanging sticker: {e}")
-        await msg.edit_text(f"Failed: {e}")
+        error_str = str(e).lower()
+        if "emoji" in error_str or "unicode" in error_str:
+            await msg.edit_text(
+                "❌ <b>Invalid Emoji</b>\n\n"
+                "Please provide a valid unicode emoji. Example:\n"
+                "<code>/kang 🖕</code>",
+                parse_mode="HTML"
+            )
+        else:
+            logger.error(f"Error kanging sticker: {e}")
+            await msg.edit_text(f"Failed: {e}")
 
 
 async def newpack(update: Update, context: ContextTypes.DEFAULT_TYPE):

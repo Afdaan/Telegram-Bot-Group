@@ -16,6 +16,12 @@ async def trace_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
         photo = target_msg.photo[-1]
     elif target_msg.sticker and not target_msg.sticker.is_animated and not target_msg.sticker.is_video:
         photo = target_msg.sticker
+    elif target_msg.animation and target_msg.animation.thumbnail:
+        photo = target_msg.animation.thumbnail
+    elif target_msg.video and target_msg.video.thumbnail:
+        photo = target_msg.video.thumbnail
+    elif target_msg.video_note and target_msg.video_note.thumbnail:
+        photo = target_msg.video_note.thumbnail
     elif target_msg.document and target_msg.document.mime_type.startswith("image/"):
         photo = target_msg.document
 
@@ -29,9 +35,10 @@ async def trace_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file = await context.bot.get_file(photo.file_id)
         
         async with httpx.AsyncClient() as client:
+            image_data = await file.download_as_bytearray()
             response = await client.post(
                 "https://api.trace.moe/search?cutBorders&anilistInfo",
-                files={"image": await file.download_as_bytearray()}
+                files={"image": ("image.jpg", bytes(image_data), "image/jpeg")}
             )
             data = response.json()
 

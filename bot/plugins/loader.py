@@ -15,6 +15,7 @@ PLUGIN_PACKAGES = [
     "bot.plugins.general",
     "bot.plugins.entertainment",
     "bot.plugins.tools",
+    "bot.plugins.anime",
 ]
 
 

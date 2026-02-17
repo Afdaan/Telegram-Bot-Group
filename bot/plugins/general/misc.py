@@ -72,7 +72,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🛠️ Tools", callback_data="help_cat:tools"),
         ],
         [
+            InlineKeyboardButton("🌸 Anime", callback_data="help_cat:anime"),
             InlineKeyboardButton("\U0001f3ad Entertainment", callback_data="help_cat:entertainment"),
+        ],
+        [
             InlineKeyboardButton("🗑️ Close Menu", callback_data="help_cat:close")
         ]
     ])
@@ -143,6 +146,12 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/wiki - Search Wikipedia\n"
             "/calc - Calculate expressions\n"
             "/qr - Generate QR Code"
+        ),
+        "anime": (
+            "🌸 <b>Anime & Manga:</b>\n\n"
+            "/sauce - Identify anime from image source\n"
+            "/anime - Search anime details\n"
+            "/manga - Search manga details"
         ),
         "entertainment": (
             "\U0001f3ad <b>Entertainment Commands:</b>\n\n"

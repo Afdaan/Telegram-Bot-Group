@@ -40,6 +40,13 @@ This document provides a comprehensive list of all available commands for this T
 | `/qr` | `/qr <text>` | Generate a high-quality QR code |
 | `/ud` | `/ud <word>` | Look up definitions on Urban Dictionary |
 
+## 🌸 Anime & Manga
+| Command | Usage | Description |
+|---------|-------|-------------|
+| `/sauce` | `/sauce` (reply) | Identify anime from image/screenshot |
+| `/anime` | `/anime <query>` | Search anime info from MAL |
+| `/manga` | `/manga <query>` | Search manga info from MAL |
+
 ## 🎭 Entertainment
 | Command | Usage | Description |
 |---------|-------|-------------|

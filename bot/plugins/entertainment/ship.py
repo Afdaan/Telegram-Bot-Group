@@ -5,6 +5,8 @@ from telegram.constants import MessageEntityType
 from telegram.ext import Application, CommandHandler, ContextTypes
 from telegram.helpers import mention_html
 from bot.utils.parse import extract_user
+from bot.utils.user_cache import get_user_id_by_username
+from bot.database.repo import Repository
 
 async def ship(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
@@ -24,8 +26,6 @@ async def ship(update: Update, context: ContextTypes.DEFAULT_TYPE):
         mention_texts = message.parse_entities([MessageEntityType.MENTION])
         for _, mention_text in mention_texts.items():
             username = mention_text.lstrip("@").strip()
-            from bot.utils.user_cache import get_user_id_by_username
-            from bot.database.repo import Repository
             
             user_id = get_user_id_by_username(username)
             if not user_id:

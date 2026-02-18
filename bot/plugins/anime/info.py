@@ -1,7 +1,9 @@
 import html
+
 import httpx
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
+
 from bot.logger import get_logger
 
 logger = get_logger(__name__)

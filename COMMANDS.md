@@ -43,7 +43,7 @@ This document provides a comprehensive list of all available commands for this T
 ## 🌸 Anime & Manga
 | Command | Usage | Description |
 |---------|-------|-------------|
-| `/sauce` | `/sauce` (reply) | Identify anime from image/screenshot |
+| `/sauce` | `/sauce [-nsfw] [-manga] [-anime]` (reply) | Identify anime, manga, or art from image/screenshots. Falls back to SauceNAO for manga. |
 | `/anime` | `/anime <query>` | Search anime info from MAL |
 | `/manga` | `/manga <query>` | Search manga info from MAL |
 

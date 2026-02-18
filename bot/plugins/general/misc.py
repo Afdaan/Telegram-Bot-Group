@@ -1,5 +1,6 @@
 import html
 import time
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity
 from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, CallbackQueryHandler, filters
@@ -149,7 +150,8 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ),
         "anime": (
             "🌸 <b>Anime & Manga:</b>\n\n"
-            "/sauce - Identify anime from image source\n"
+            "/sauce - Identify anime, manga, or art from image\n"
+            "  Flags: <code>-nsfw</code>, <code>-manga</code>, <code>-anime</code>, <code>-fanart</code>\n"
             "/anime - Search anime details\n"
             "/manga - Search manga details"
         ),

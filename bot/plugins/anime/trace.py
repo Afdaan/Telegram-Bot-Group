@@ -1,7 +1,7 @@
 import html
 
 import httpx
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 from bot.logger import get_logger
@@ -29,7 +29,11 @@ async def trace_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
         photo = target_msg.document
 
     if not photo:
-        await message.reply_text("Please reply to an image, video, or sticker to find its source.")
+        text = (
+            "🔍 <b>Usage:</b> Reply to an image/media with <code>/sauce</code>\n"
+            "<b>Flags:</b> <code>-nsfw</code>, <code>-manga</code>, <code>-fanart</code>, <code>-anime</code>"
+        )
+        await message.reply_text(text, parse_mode="HTML")
         return
 
     args = context.args
@@ -45,7 +49,7 @@ async def trace_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
         image_bytes = bytes(await file.download_as_bytearray())
         
         if not (force_manga or force_fanart):
-            res = await _search_tracemoe(image_bytes, allow_nsfw)
+            res = await _search_tracemoe(image_bytes)
             if res and (res["similarity"] > 85 or force_anime):
                 await _send_tracemoe_res(message, status_msg, res, allow_nsfw)
                 return
@@ -61,7 +65,7 @@ async def trace_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Sauce search error: {e}")
         await status_msg.edit_text("❌ An error occurred while searching for the source.")
 
-async def _search_tracemoe(image_bytes: bytes, allow_nsfw: bool):
+async def _search_tracemoe(image_bytes: bytes):
     url = "https://api.trace.moe/search?cutBorders&anilistInfo"
     async with httpx.AsyncClient() as client:
         response = await client.post(url, files={"image": ("image.jpg", image_bytes, "image/jpeg")})
@@ -106,9 +110,10 @@ async def _send_tracemoe_res(message, status_msg, result, allow_nsfw):
 async def _search_saucenao(image_bytes: bytes, allow_nsfw: bool):
     params = {
         "output_type": 2,
-        "testmode": 1,
         "numres": 1,
-        "db": 999
+        "db": 999,
+        "dedupe": 2,
+        "hide": 0 if allow_nsfw else 3
     }
     if settings.saucenao_key:
         params["api_key"] = settings.saucenao_key
@@ -131,22 +136,34 @@ async def _search_saucenao(image_bytes: bytes, allow_nsfw: bool):
 
 async def _send_saucenao_res(message, status_msg, result, allow_nsfw):
     data = result["data"]
-    header = result["header"]
     similarity = result["similarity"]
     
-    title = data.get("title") or data.get("source") or "Unknown"
+    title = (
+        data.get("title") or 
+        data.get("source") or 
+        data.get("material") or 
+        data.get("eng_name") or 
+        "Unknown Source"
+    )
+    
+    author = (
+        data.get("member_name") or 
+        data.get("author") or 
+        data.get("creator") or 
+        data.get("author_name")
+    )
     
     meta = []
-    if "eng_name" in data: meta.append(f"<b>ENG:</b> {data['eng_name']}")
-    if "jp_name" in data: meta.append(f"<b>JP:</b> {data['jp_name']}")
-    if "author" in data: meta.append(f"<b>Author:</b> {data['author']}")
-    if "part" in data: meta.append(f"<b>Part/Chapter:</b> {data['part']}")
+    if author: meta.append(f"<b>Author:</b> {html.escape(str(author))}")
+    if "part" in data: meta.append(f"<b>Part/Chapter:</b> {html.escape(str(data['part']))}")
+    if "characters" in data: meta.append(f"<b>Characters:</b> {html.escape(str(data['characters']))}")
+    if "est_time" in data: meta.append(f"<b>Est. Time:</b> {html.escape(str(data['est_time']))}")
     
     links = data.get("ext_urls", [])
     
     text = (
-        f"📖 <b>Manga/Art Source Found!</b> ({similarity}%)\n\n"
-        f"📝 <b>Source:</b> {html.escape(title)}\n"
+        f"📖 <b>Source Found!</b> ({similarity}%)\n\n"
+        f"📝 <b>Title:</b> {html.escape(str(title))}\n"
     )
     if meta:
         text += "\n".join(meta) + "\n"
@@ -155,7 +172,6 @@ async def _send_saucenao_res(message, status_msg, result, allow_nsfw):
         text = "🔞 <b>NSFW Content Enabled</b>\n\n" + text
 
     if links:
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
         keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🔗 View Source", url=links[0])]])
         await status_msg.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
     else:

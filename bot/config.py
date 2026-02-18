@@ -16,6 +16,7 @@ class Settings:
     db_password: str
     db_name: str
     log_level: str
+    saucenao_key: str | None = None
 
     @property
     def database_url(self) -> str:
@@ -34,6 +35,7 @@ def load_settings() -> Settings:
         db_password=os.getenv("DB_PASSWORD", ""),
         db_name=os.getenv("DB_NAME", "telegram_bot"),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
+        saucenao_key=os.getenv("SAUCENAO_KEY"),
     )
 
 

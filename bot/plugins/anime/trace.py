@@ -1,7 +1,9 @@
 import html
+
 import httpx
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
+
 from bot.logger import get_logger
 from bot.config import settings
 
@@ -34,6 +36,7 @@ async def trace_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
     allow_nsfw = "-nsfw" in args
     force_manga = "-manga" in args
     force_anime = "-anime" in args
+    force_fanart = "-fanart" in args
     
     status_msg = await message.reply_text("🔍 Searching for source...")
 
@@ -41,7 +44,7 @@ async def trace_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file = await context.bot.get_file(photo.file_id)
         image_bytes = bytes(await file.download_as_bytearray())
         
-        if not force_manga:
+        if not (force_manga or force_fanart):
             res = await _search_tracemoe(image_bytes, allow_nsfw)
             if res and (res["similarity"] > 85 or force_anime):
                 await _send_tracemoe_res(message, status_msg, res, allow_nsfw)

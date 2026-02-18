@@ -1,11 +1,10 @@
 import os
 from dataclasses import dataclass
+from urllib.parse import quote_plus
+
 from dotenv import load_dotenv
 
 load_dotenv()
-
-
-from urllib.parse import quote_plus
 
 @dataclass(frozen=True)
 class Settings:

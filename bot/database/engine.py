@@ -17,7 +17,12 @@ async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit
 
 
 async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("Connected to MySQL → %s@%s:%s/%s",
-                settings.db_user, settings.db_host, settings.db_port, settings.db_name)
+    logger.info("Initializing database connection to %s:%s...", settings.db_host, settings.db_port)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("✅ Connected to MySQL → %s@%s:%s/%s",
+                    settings.db_user, settings.db_host, settings.db_port, settings.db_name)
+    except Exception as e:
+        logger.error("❌ Database initialization failed: %s", e)
+        raise e

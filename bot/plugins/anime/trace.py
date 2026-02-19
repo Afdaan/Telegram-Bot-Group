@@ -110,7 +110,7 @@ async def _send_tracemoe_res(message, status_msg, result, allow_nsfw):
 async def _search_saucenao(image_bytes: bytes, allow_nsfw: bool):
     params = {
         "output_type": 2,
-        "numres": 1,
+        "numres": 3,
         "db": 999,
         "dedupe": 2,
         "hide": 0 if allow_nsfw else 3
@@ -130,9 +130,19 @@ async def _search_saucenao(image_bytes: bytes, allow_nsfw: bool):
         if not results:
             return None
             
-        res = results[0]
-        res["similarity"] = float(res["header"]["similarity"])
-        return res
+        best_res = None
+        highest_sim = 0
+        
+        for res in results:
+            sim = float(res["header"]["similarity"])
+            if sim > highest_sim:
+                highest_sim = sim
+                best_res = res
+                
+        if best_res:
+            best_res["similarity"] = highest_sim
+            return best_res
+        return None
 
 async def _send_saucenao_res(message, status_msg, result, allow_nsfw):
     data = result["data"]

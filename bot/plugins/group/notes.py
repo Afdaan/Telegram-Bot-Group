@@ -183,4 +183,7 @@ def register(app: Application):
     app.add_handler(CommandHandler("clear", clear_note))
     app.add_handler(CommandHandler("notes", list_notes))
     app.add_handler(CallbackQueryHandler(note_callback, pattern=r"^get_note:"))
-    app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, hashtag_listener))
+    app.add_handler(MessageHandler(
+        filters.Regex(r"^#") & filters.ChatType.GROUPS, 
+        hashtag_listener
+    ), group=9)

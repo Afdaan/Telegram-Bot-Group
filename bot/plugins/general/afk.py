@@ -30,10 +30,10 @@ async def afk(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def no_longer_afk(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.effective_user or not update.effective_message:
+    if not update.message or not update.message.from_user:
         return
 
-    user_id = update.effective_user.id
+    user_id = update.message.from_user.id
 
     if user_id in afk_users:
         afk_data = afk_users.pop(user_id)
@@ -46,8 +46,8 @@ async def no_longer_afk(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             duration = f"{elapsed // 3600}h {(elapsed % 3600) // 60}m"
 
-        await update.effective_message.reply_text(
-            f"👋 {update.effective_user.first_name} is back! Was away for {duration}."
+        await update.message.reply_text(
+            f"👋 {update.message.from_user.first_name} is back! Was away for {duration}."
         )
 
 
@@ -104,7 +104,7 @@ def register(app: Application):
         afk,
     ), group=AFK_GROUP)
     app.add_handler(MessageHandler(
-        filters.ALL & ~filters.COMMAND & filters.ChatType.GROUPS,
+        filters.ALL & ~filters.COMMAND & filters.ChatType.GROUPS & ~filters.StatusUpdate & ~filters.UpdateType.EDITED_MESSAGE,
         no_longer_afk,
     ), group=AFK_GROUP)
     app.add_handler(MessageHandler(

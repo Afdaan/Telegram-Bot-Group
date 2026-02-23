@@ -38,6 +38,7 @@ class Group(Base):
     filters: Mapped[list["Filter"]] = relationship(back_populates="group", cascade="all, delete-orphan")
     blacklists: Mapped[list["Blacklist"]] = relationship(back_populates="group", cascade="all, delete-orphan")
     warn_filters: Mapped[list["WarnFilter"]] = relationship(back_populates="group", cascade="all, delete-orphan")
+    notes: Mapped[list["Note"]] = relationship(back_populates="group", cascade="all, delete-orphan")
 
 
 class GroupSettings(Base):
@@ -135,6 +136,22 @@ class Blacklist(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     group: Mapped["Group"] = relationship(back_populates="blacklists")
+
+
+class Note(Base):
+    __tablename__ = "notes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    group_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("groups_.telegram_id", ondelete="CASCADE")
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    content: Mapped[str | None] = mapped_column(Text)
+    file_id: Mapped[str | None] = mapped_column(String(255))
+    file_type: Mapped[str | None] = mapped_column(String(50))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    group: Mapped["Group"] = relationship(back_populates="notes")
 
 
 class RssFeed(Base):

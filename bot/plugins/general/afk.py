@@ -104,7 +104,7 @@ def register(app: Application):
         afk,
     ), group=AFK_GROUP)
     app.add_handler(MessageHandler(
-        filters.ALL & ~filters.COMMAND & filters.ChatType.GROUPS & ~filters.StatusUpdate & ~filters.UpdateType.EDITED_MESSAGE,
+        filters.ALL & ~filters.COMMAND & filters.ChatType.GROUPS & ~filters.StatusUpdate.ALL,
         no_longer_afk,
     ), group=AFK_GROUP)
     app.add_handler(MessageHandler(

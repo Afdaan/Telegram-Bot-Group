@@ -1,6 +1,6 @@
 from sqlalchemy import select, delete, func
 from bot.database.engine import async_session
-from bot.database.models import User, Group, GroupSettings, Warning, StickerPack, Filter, Blacklist, RssFeed, WarnFilter
+from bot.database.models import User, Group, GroupSettings, Warning, StickerPack, Filter, Blacklist, RssFeed, WarnFilter, Note
 
 
 class Repository:
@@ -320,5 +320,47 @@ class Repository:
         async with async_session() as session:
             result = await session.scalars(
                 select(WarnFilter).where(WarnFilter.group_id == group_id)
+            )
+            return list(result.all())
+
+    @staticmethod
+    async def add_note(group_id: int, name: str, content: str, file_id: str = None, file_type: str = None) -> Note:
+        async with async_session() as session:
+            name = name.lower()
+            existing = await session.scalar(
+                select(Note).where(Note.group_id == group_id, Note.name == name)
+            )
+            if existing:
+                existing.content = content
+                existing.file_id = file_id
+                existing.file_type = file_type
+            else:
+                existing = Note(group_id=group_id, name=name, content=content, file_id=file_id, file_type=file_type)
+                session.add(existing)
+            await session.commit()
+            await session.refresh(existing)
+            return existing
+
+    @staticmethod
+    async def get_note(group_id: int, name: str) -> Note | None:
+        async with async_session() as session:
+            return await session.scalar(
+                select(Note).where(Note.group_id == group_id, Note.name == name.lower())
+            )
+
+    @staticmethod
+    async def remove_note(group_id: int, name: str) -> bool:
+        async with async_session() as session:
+            result = await session.execute(
+                delete(Note).where(Note.group_id == group_id, Note.name == name.lower())
+            )
+            await session.commit()
+            return result.rowcount > 0
+
+    @staticmethod
+    async def get_notes(group_id: int) -> list[Note]:
+        async with async_session() as session:
+            result = await session.scalars(
+                select(Note).where(Note.group_id == group_id)
             )
             return list(result.all())

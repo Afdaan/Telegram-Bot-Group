@@ -22,6 +22,8 @@ async def afk(update: Update, context: ContextTypes.DEFAULT_TYPE):
     afk_users[user_id] = {
         "reason": reason,
         "time": time.time(),
+        "username": update.effective_user.username.lower() if update.effective_user.username else None,
+        "first_name": update.effective_user.first_name
     }
 
     await update.effective_message.reply_text(
@@ -59,7 +61,13 @@ async def reply_afk(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if message.reply_to_message and message.reply_to_message.from_user:
         replied_user = message.reply_to_message.from_user
-        if replied_user.id in afk_users:
+        
+        is_topic_header = message.is_topic_message and message.reply_to_message.message_id == message.message_thread_id
+        
+        is_service = message.reply_to_message.new_chat_members or message.reply_to_message.left_chat_member or \
+                     message.reply_to_message.pinned_message or message.reply_to_message.forum_topic_created
+        
+        if not is_topic_header and not is_service and not replied_user.is_bot and replied_user.id in afk_users:
             afk_data = afk_users[replied_user.id]
             text = f"💤 {replied_user.first_name} is AFK."
             if afk_data["reason"]:
@@ -78,16 +86,12 @@ async def reply_afk(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user_id = entity.user.id
             name = entity.user.first_name
         elif entity.type == MessageEntity.MENTION:
-            username = message.text[entity.offset + 1:entity.offset + entity.length]
+            username = message.text[entity.offset + 1:entity.offset + entity.length].lower()
             for uid, data in afk_users.items():
-                try:
-                    member = await context.bot.get_chat(uid)
-                    if member.username and member.username.lower() == username.lower():
-                        user_id = uid
-                        name = member.first_name
-                        break
-                except Exception:
-                    continue
+                if data.get("username") == username:
+                    user_id = uid
+                    name = data.get("first_name")
+                    break
 
         if user_id and user_id in afk_users:
             afk_data = afk_users[user_id]

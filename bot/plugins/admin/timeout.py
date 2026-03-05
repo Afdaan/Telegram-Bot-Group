@@ -15,7 +15,10 @@ logger = get_logger(__name__)
 async def timeout(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = await extract_user(update)
     if not target:
-        await update.effective_message.reply_text("Usage: /timeout <reply|@user|id> <duration: 30m/2h/1d>")
+        await update.effective_message.reply_html(
+            "🔍 <b>Usage:</b> <code>/timeout &lt;reply|@user|id&gt; &lt;duration&gt;</code>\n"
+            "<b>Example:</b> <code>/timeout @user 1d</code>"
+        )
         return
 
     user_id, name = target

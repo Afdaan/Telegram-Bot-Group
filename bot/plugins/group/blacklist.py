@@ -59,7 +59,10 @@ async def add_blacklist(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = update.effective_message.text.split(None, 1)
 
     if len(args) < 2:
-        await update.effective_message.reply_text("Usage: /addblacklist <word or phrases>\nMultiple words on separate lines.")
+        await update.effective_message.reply_html(
+            "🔍 <b>Usage:</b> <code>/addblacklist &lt;word or phrases&gt;</code>\n"
+            "Multiple words can be added on separate lines."
+        )
         return
 
     text = args[1]
@@ -92,7 +95,10 @@ async def remove_blacklist(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = update.effective_message.text.split(None, 1)
 
     if len(args) < 2:
-        await update.effective_message.reply_text("Usage: /rmblacklist <word or phrases>\nMultiple words on separate lines.")
+        await update.effective_message.reply_html(
+            "🔍 <b>Usage:</b> <code>/rmblacklist &lt;word or phrases&gt;</code>\n"
+            "Multiple words can be removed on separate lines."
+        )
         return
 
     text = args[1]

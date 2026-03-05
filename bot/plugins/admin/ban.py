@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = await extract_user(update)
     if not target:
-        await update.effective_message.reply_text("Usage: /ban <reply|@user|id>")
+        await update.effective_message.reply_html("🔍 <b>Usage:</b> <code>/ban &lt;reply|@user|id&gt;</code>")
         return
 
     user_id, name = target
@@ -37,7 +37,7 @@ async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def unban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = await extract_user(update)
     if not target:
-        await update.effective_message.reply_text("Usage: /unban <reply|@user|id>")
+        await update.effective_message.reply_html("🔍 <b>Usage:</b> <code>/unban &lt;reply|@user|id&gt;</code>")
         return
 
     user_id, name = target

@@ -31,15 +31,14 @@ async def translate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = message.text.split(None, 1)
 
     if not message.reply_to_message and len(args) < 2:
-        langs = "  ".join(f"`{code}` {name}" for code, name in POPULAR_LANGS.items())
-        await message.reply_text(
-            "📝 **Translate**\n\n"
-            "**Usage:**\n"
-            "• Reply to a message: `/tr <lang>`\n"
-            "• Inline: `/tr <lang> <text>`\n\n"
-            f"**Languages:**\n{langs}\n\n"
-            "_Use any language code from Google Translate_",
-            parse_mode="Markdown",
+        langs = "  ".join(f"<code>{code}</code> {name}" for code, name in POPULAR_LANGS.items())
+        await message.reply_html(
+            "📝 <b>Translate</b>\n\n"
+            "🔍 <b>Usage:</b>\n"
+            "  • Reply to a message: <code>/tr &lt;lang&gt;</code>\n"
+            "  • Inline: <code>/tr &lt;lang&gt; &lt;text&gt;</code>\n\n"
+            f"<b>Popular Languages:</b>\n{langs}\n\n"
+            "<i>Use any standard language code from Google Translate</i>"
         )
         return
 

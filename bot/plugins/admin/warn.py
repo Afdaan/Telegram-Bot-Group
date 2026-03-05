@@ -69,7 +69,7 @@ async def _do_warn(update, context, user_id, name, reason, chat_id):
 async def warn(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = await extract_user(update)
     if not target:
-        await update.effective_message.reply_text("Usage: /warn <reply|@user|id> [reason]")
+        await update.effective_message.reply_html("🔍 <b>Usage:</b> <code>/warn &lt;reply|@user|id&gt; [reason]</code>")
         return
 
     user_id, name = target
@@ -150,7 +150,7 @@ async def warns(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def resetwarns(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = await extract_user(update)
     if not target:
-        await update.effective_message.reply_text("Usage: /resetwarns <reply|@user|id>")
+        await update.effective_message.reply_html("🔍 <b>Usage:</b> <code>/resetwarns &lt;reply|@user|id&gt;</code>")
         return
 
     user_id, name = target
@@ -169,7 +169,7 @@ async def resetwarns(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def unwarn(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = await extract_user(update)
     if not target:
-        await update.effective_message.reply_text("Usage: /unwarn <reply|@user|id>")
+        await update.effective_message.reply_html("🔍 <b>Usage:</b> <code>/unwarn &lt;reply|@user|id&gt;</code>")
         return
 
     user_id, name = target
@@ -193,10 +193,10 @@ async def warnlimit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if len(args) < 2:
         settings = await Repository.get_or_create_settings(chat_id)
-        await update.effective_message.reply_text(
-            f"📋 Current warn limit: {settings.warn_limit}\n"
-            f"Action on limit: {settings.warn_action}\n\n"
-            f"Usage: /warnlimit <number>"
+        await update.effective_message.reply_html(
+            f"📋 <b>Current warn limit:</b> {settings.warn_limit}\n"
+            f"<b>Action on limit:</b> {settings.warn_action.capitalize()}\n\n"
+            f"🔍 <b>Usage:</b> <code>/warnlimit &lt;number&gt;</code>"
         )
         return
 
@@ -226,11 +226,11 @@ async def strongwarn(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if len(args) < 2:
         current = "🔨 Ban" if settings.warn_action == "ban" else "👢 Kick"
-        await update.effective_message.reply_text(
-            f"📋 Current action on warn limit: {current}\n\n"
-            f"Usage:\n"
-            f"  /strongwarn on — ban on limit\n"
-            f"  /strongwarn off — kick on limit"
+        await update.effective_message.reply_html(
+            f"📋 <b>Current action on warn limit:</b> {current}\n\n"
+            f"🔍 <b>Usage:</b>\n"
+            f"  <code>/strongwarn on</code> — ban on limit\n"
+            f"  <code>/strongwarn off</code> — kick on limit"
         )
         return
 
@@ -254,9 +254,9 @@ async def addwarn(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = update.effective_message.text.split(None, 1)
 
     if len(args) < 2:
-        await update.effective_message.reply_text(
-            'Usage: /addwarn <keyword> <reason>\n'
-            'Use quotes for multi-word keywords: /addwarn "bad word" reason here'
+        await update.effective_message.reply_html(
+            "🔍 <b>Usage:</b> <code>/addwarn &lt;keyword&gt; &lt;reason&gt;</code>\n"
+            "<b>Example:</b> <code>/addwarn \"bad word\" Don't say that!</code>"
         )
         return
 
@@ -286,7 +286,7 @@ async def rmwarn(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = update.effective_message.text.split(None, 1)
 
     if len(args) < 2:
-        await update.effective_message.reply_text("Usage: /nowarn <keyword>")
+        await update.effective_message.reply_html("🔍 <b>Usage:</b> <code>/nowarn &lt;keyword&gt;</code>")
         return
 
     keyword = args[1].strip().lower()

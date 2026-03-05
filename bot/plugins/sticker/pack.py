@@ -110,12 +110,12 @@ async def kang(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     reply = update.effective_message.reply_to_message
     if not reply:
-        await update.effective_message.reply_text("Reply to a photo, sticker, or GIF to kang it.")
+        await update.effective_message.reply_html("🔍 <b>Usage:</b> Reply to a photo, sticker, or GIF with <code>/kang</code> to add it to your pack.")
         return
 
     file_obj, emoji, is_video = await extract_file(reply)
     if not file_obj:
-        await update.effective_message.reply_text("Unsupported media type.")
+        await update.effective_message.reply_html("❌ <b>Unsupported media type.</b>\nPlease reply to a photo, sticker, or GIF.")
         return
 
     if context.args:
@@ -173,9 +173,9 @@ async def kang(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def newpack(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = update.effective_message.text.split(maxsplit=1)
     if len(args) < 2:
-        await update.effective_message.reply_text(
-            "Usage: /newpack <pack_name>\n"
-            "Reply to a photo or sticker as the first sticker."
+        await update.effective_message.reply_html(
+            "🔍 <b>Usage:</b> <code>/newpack &lt;pack_name&gt;</code>\n"
+            "<i>(Reply to a photo or sticker as the first sticker)</i>"
         )
         return
 
@@ -185,12 +185,12 @@ async def newpack(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     reply = update.effective_message.reply_to_message
     if not reply:
-        await update.effective_message.reply_text("Reply to a photo, sticker, or GIF as the first sticker.")
+        await update.effective_message.reply_html("🔍 <b>Usage:</b> Reply to a photo, sticker, or GIF to use as the first sticker.")
         return
 
     file_obj, emoji, is_video = await extract_file(reply)
     if not file_obj:
-        await update.effective_message.reply_text("Unsupported media type.")
+        await update.effective_message.reply_html("❌ <b>Unsupported media type.</b>\nPlease reply to a photo, sticker, or GIF.")
         return
 
     msg = await update.effective_message.reply_text("\u23f3 Creating pack...")
@@ -237,9 +237,9 @@ async def addsticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     args = update.effective_message.text.split(maxsplit=1)
     if len(args) < 2:
-        await update.effective_message.reply_text(
-            "Usage: /addsticker <pack_name>\n"
-            "Reply to a photo or sticker to add it."
+        await update.effective_message.reply_html(
+            "🔍 <b>Usage:</b> <code>/addsticker &lt;pack_name&gt;</code>\n"
+            "<i>(Reply to a photo or sticker to add it)</i>"
         )
         return
 
@@ -258,12 +258,12 @@ async def addsticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     reply = update.effective_message.reply_to_message
     if not reply:
-        await update.effective_message.reply_text("Reply to a photo or sticker to add it.")
+        await update.effective_message.reply_html("🔍 <b>Usage:</b> Reply to a photo or sticker to add it.")
         return
 
     file_obj, emoji, is_video = await extract_file(reply)
     if not file_obj:
-        await update.effective_message.reply_text("Unsupported media type.")
+        await update.effective_message.reply_html("❌ <b>Unsupported media type.</b>\nPlease reply to a photo, sticker, or GIF.")
         return
 
     if custom_emoji:
@@ -312,7 +312,7 @@ async def addsticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def delsticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply = update.effective_message.reply_to_message
     if not reply or not reply.sticker:
-        await update.effective_message.reply_text("Reply to a sticker from your pack.")
+        await update.effective_message.reply_html("🔍 <b>Usage:</b> Reply to a sticker from your pack with <code>/delsticker</code>")
         return
 
     try:

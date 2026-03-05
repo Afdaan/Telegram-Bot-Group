@@ -29,8 +29,10 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if target:
             user_id, username = target
         else:
-            await message.reply_text(
-                "❌ User not found. Try replying to their message or use @username or user ID."
+            await message.reply_html(
+                "🔍 <b>Usage:</b>\n"
+                "  • Reply to a message with <code>/userinfo</code>\n"
+                "  • <code>/userinfo &lt;@username|id&gt;</code>"
             )
             return
     else:

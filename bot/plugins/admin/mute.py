@@ -16,7 +16,10 @@ logger = get_logger(__name__)
 async def mute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = await extract_user(update)
     if not target:
-        await update.effective_message.reply_text("Usage: /mute <reply|@user|id> [duration: 30m/2h/1d]")
+        await update.effective_message.reply_html(
+            "🔍 <b>Usage:</b> <code>/mute &lt;reply|@user|id&gt; [duration]</code>\n"
+            "<b>Example:</b> <code>/mute @user 30m</code>"
+        )
         return
 
     user_id, name = target
@@ -75,7 +78,7 @@ async def mute(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def unmute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = await extract_user(update)
     if not target:
-        await update.effective_message.reply_text("Usage: /unmute <reply|@user|id>")
+        await update.effective_message.reply_html("🔍 <b>Usage:</b> <code>/unmute &lt;reply|@user|id&gt;</code>")
         return
 
     user_id, name = target

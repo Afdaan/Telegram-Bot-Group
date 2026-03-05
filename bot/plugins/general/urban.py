@@ -11,7 +11,7 @@ USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 
 async def urban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
-        await update.effective_message.reply_text("Usage: /ud <word>")
+        await update.effective_message.reply_html("🔍 <b>Usage:</b> <code>/ud &lt;word&gt;</code>")
         return
 
     term = " ".join(context.args)

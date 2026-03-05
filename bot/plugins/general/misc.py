@@ -193,7 +193,7 @@ async def debug_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not message:
         return
 
-    async def process_user(u):
+    async def _process_user(u):
         if not u or u.is_bot:
             return
         remember_user(u)
@@ -203,23 +203,26 @@ async def debug_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
             first_name=u.first_name
         )
 
-    await process_user(update.effective_user)
-    await process_user(message.from_user)
+    try:
+        await _process_user(update.effective_user)
+        await _process_user(message.from_user)
 
-    if message.reply_to_message:
-        await process_user(message.reply_to_message.from_user)
+        if message.reply_to_message:
+            await _process_user(message.reply_to_message.from_user)
 
-    if getattr(message, "new_chat_members", None):
-        for user in message.new_chat_members:
-            await process_user(user)
+        if getattr(message, "new_chat_members", None):
+            for user in message.new_chat_members:
+                await _process_user(user)
 
-    if getattr(message, "left_chat_member", None):
-        await process_user(message.left_chat_member)
+        if getattr(message, "left_chat_member", None):
+            await _process_user(message.left_chat_member)
 
-    if message.entities:
-        for entity in message.entities:
-            if entity.type == "text_mention" and entity.user:
-                await process_user(entity.user)
+        if message.entities:
+            for entity in message.entities:
+                if entity.type == "text_mention" and entity.user:
+                    await _process_user(entity.user)
+    except Exception as e:
+        logger.error(f"Error in debug_all watcher: {e}")
 
 def register(app: Application):
     app.add_handler(CommandHandler("start", start))

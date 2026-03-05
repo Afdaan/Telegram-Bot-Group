@@ -11,7 +11,7 @@ async def mock(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif context.args:
         text = " ".join(context.args)
     else:
-        await message.reply_text("Reply to a message or provide text to mock it!")
+        await message.reply_html("🔍 <b>Usage:</b> Reply to a message or provide text with <code>/mock</code>")
         return
         
     mocked = "".join(c.upper() if i % 2 == 0 else c.lower() for i, c in enumerate(text))

@@ -5,7 +5,10 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 
 async def calculate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
-        await update.effective_message.reply_text("Usage: /calc <expression>\nExample: /calc 2 + 2 * 5")
+        await update.effective_message.reply_html(
+            "🔍 <b>Usage:</b> <code>/calc &lt;expression&gt;</code>\n"
+            "<b>Example:</b> <code>/calc 2 + 2 * 5</code>"
+        )
         return
 
     expression = "".join(context.args).replace(",", ".")

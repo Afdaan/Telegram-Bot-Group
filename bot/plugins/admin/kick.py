@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 async def kick(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = await extract_user(update)
     if not target:
-        await update.effective_message.reply_text("Usage: /kick <reply|@user|id>")
+        await update.effective_message.reply_html("🔍 <b>Usage:</b> <code>/kick &lt;reply|@user|id&gt;</code>")
         return
 
     user_id, name = target

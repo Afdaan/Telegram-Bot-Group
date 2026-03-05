@@ -31,7 +31,7 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if not message.reply_to_message:
-        await message.reply_text("Reply to a message to report it to admins.")
+        await message.reply_html("🔍 <b>Usage:</b> Reply to a message with <code>/report</code> to notify admins.")
         return
 
     reported_user = message.reply_to_message.from_user

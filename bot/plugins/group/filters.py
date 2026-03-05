@@ -14,7 +14,10 @@ async def add_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
     rest = text.partition(' ')[2].strip()
 
     if not rest:
-        await update.effective_message.reply_text("Usage: /filter <trigger> <response>")
+        await update.effective_message.reply_html(
+            "🔍 <b>Usage:</b> <code>/filter &lt;trigger&gt; &lt;response&gt;</code>\n"
+            "<b>Example:</b> <code>/filter hello Hi there!</code>"
+        )
         return
 
     trigger = ""
@@ -117,7 +120,7 @@ async def add_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def stop_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
     if not args:
-        await update.effective_message.reply_text("Usage: /stop <trigger>")
+        await update.effective_message.reply_html("🔍 <b>Usage:</b> <code>/stop &lt;trigger&gt;</code>")
         return
 
     trigger = update.effective_message.text.partition(' ')[2].strip()

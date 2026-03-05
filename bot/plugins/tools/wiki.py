@@ -8,7 +8,7 @@ logger = get_logger(__name__)
 
 async def wiki(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
-        await update.effective_message.reply_text("Usage: /wiki <query>")
+        await update.effective_message.reply_html("🔍 <b>Usage:</b> <code>/wiki &lt;query&gt;</code>")
         return
 
     query = " ".join(context.args)

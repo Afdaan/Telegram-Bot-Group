@@ -14,7 +14,7 @@ async def ball8(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     
     if not context.args:
-        await update.effective_message.reply_text("Usage: /8ball <question>")
+        await update.effective_message.reply_html("🔍 <b>Usage:</b> <code>/8ball &lt;question&gt;</code>")
         return
         
     await update.effective_message.reply_html(f"🔮 <b>Magic 8-Ball:</b> {random.choice(responses)}")

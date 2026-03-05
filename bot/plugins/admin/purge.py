@@ -42,10 +42,10 @@ async def purge(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         args = update.effective_message.text.split()
         if len(args) < 2 or not args[1].isdigit():
-            await update.effective_message.reply_text(
-                "Usage:\n"
-                "• Reply to a message with /purge to delete from that point\n"
-                "• /purge <number> to delete last N messages"
+            await update.effective_message.reply_html(
+                "🔍 <b>Usage:</b>\n"
+                "  • Reply to a message with <code>/purge</code> to delete from that point\n"
+                "  • <code>/purge &lt;number&gt;</code> to delete last N messages"
             )
             return
         count = int(args[1])

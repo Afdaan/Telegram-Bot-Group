@@ -6,7 +6,10 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 
 async def decide(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
-        await update.effective_message.reply_text("Usage: /decide <question or choices>")
+        await update.effective_message.reply_html(
+            "🔍 <b>Usage:</b> <code>/decide &lt;question or choices&gt;</code>\n"
+            "<b>Example:</b> <code>/decide pizza or burger</code>"
+        )
         return
         
     query = " ".join(context.args)

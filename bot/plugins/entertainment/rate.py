@@ -5,7 +5,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 
 async def rate(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
-        await update.effective_message.reply_text("Usage: /rate item to rate")
+        await update.effective_message.reply_html("🔍 <b>Usage:</b> <code>/rate &lt;item&gt;</code>")
         return
         
     item = " ".join(context.args)

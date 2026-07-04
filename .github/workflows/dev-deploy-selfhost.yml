@@ -2,7 +2,7 @@ name: Deploy DEV Telegram Bot
 
 on:
   push:
-    branches: [ "development" ]
+    branches: ["development"]
   workflow_dispatch:
 
 jobs:
@@ -66,6 +66,7 @@ jobs:
             --restart unless-stopped \
             --env-file ${{ env.RUNTIME_DIR }}/.env \
             -v ${{ env.RUNTIME_DIR }}/logs:/app/logs \
+            --network playground-network \
             ${{ env.IMAGE_NAME }}:${{ env.NEXT_TAG }}
 
       - name: Cleanup Old Images
@@ -82,7 +83,7 @@ jobs:
           CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           MESSAGE="✅ <b>${{ env.ENV_TYPE }} Deployment SUCCESS</b>%0A%0A📦 <b>Container:</b> ${{ env.CONTAINER_NAME }}%0A🏷 <b>Tag:</b> ${{ env.NEXT_TAG }}%0A🖼 <b>Image:</b> ${{ env.IMAGE_NAME }}:${{ env.NEXT_TAG }}%0A%0A📝 <b>Git Info:</b>%0A• <b>Branch:</b> ${{ env.GIT_BRANCH }}%0A• <b>Commit:</b> <code>${{ env.COMMIT_SHORT }}</code>%0A• <b>Author:</b> ${{ env.COMMIT_AUTHOR }}%0A• <b>Date:</b> ${{ env.COMMIT_DATE }}%0A• <b>Message:</b> ${{ env.COMMIT_MESSAGE }}"
-          
+
           curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
           -d chat_id="$CHAT_ID" \
           -d parse_mode="HTML" \
@@ -95,7 +96,7 @@ jobs:
           CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           MESSAGE="❌ <b>${{ env.ENV_TYPE }} Deployment FAILED</b>%0A%0A📦 <b>Container:</b> ${{ env.CONTAINER_NAME }}%0A🏷 <b>Target Tag:</b> ${{ env.NEXT_TAG }}%0A%0A⚠️ <b>Check GitHub Actions logs for details.</b>"
-          
+
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
           -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
           -d parse_mode="HTML" \

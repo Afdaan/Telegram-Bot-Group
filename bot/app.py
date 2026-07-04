@@ -24,6 +24,12 @@ def main():
     app = (
         ApplicationBuilder()
         .token(settings.bot_token)
+        .connect_timeout(20)
+        .read_timeout(20)
+        .write_timeout(20)
+        .get_updates_connect_timeout(20)
+        .get_updates_read_timeout(65)
+        .get_updates_write_timeout(20)
         .post_init(post_init)
         .build()
     )

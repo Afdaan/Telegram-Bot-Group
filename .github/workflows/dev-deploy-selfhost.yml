@@ -12,8 +12,8 @@ jobs:
     env:
       IMAGE_NAME: afdaaan/telegram-bot-dev
       CONTAINER_NAME: telegram-bot-dev
-      BUILD_DIR: /opt/dev-alisa
-      RUNTIME_DIR: /opt/dev-alisa
+      BUILD_DIR: /opt/Telegram-Bot-Group
+      RUNTIME_DIR: /opt/Telegram-Bot-Group
       ENV_TYPE: DEV
 
     steps:

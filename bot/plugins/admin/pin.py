@@ -1,14 +1,14 @@
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from bot.logger import get_logger
-from bot.utils.decorators import group_only, admin_only, bot_admin_required
+from bot.utils.decorators import group_only, admin_right_required, bot_right_required
 
 logger = get_logger(__name__)
 
 
 @group_only
-@admin_only
-@bot_admin_required
+@admin_right_required("can_pin_messages")
+@bot_right_required("can_pin_messages")
 async def pin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_message.reply_to_message:
         await update.effective_message.reply_text("Reply to a message to pin it.")
@@ -23,8 +23,8 @@ async def pin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 @group_only
-@admin_only
-@bot_admin_required
+@admin_right_required("can_pin_messages")
+@bot_right_required("can_pin_messages")
 async def unpin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_message.reply_to_message:
         await context.bot.unpin_chat_message(

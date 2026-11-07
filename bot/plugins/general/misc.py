@@ -193,9 +193,12 @@ async def debug_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not message:
         return
 
+    processed_user_ids = set()
+
     async def _process_user(u):
-        if not u or u.is_bot:
+        if not u or u.is_bot or u.id in processed_user_ids:
             return
+        processed_user_ids.add(u.id)
         remember_user(u)
         await Repository.upsert_user(
             telegram_id=u.id,

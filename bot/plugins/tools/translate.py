@@ -1,4 +1,5 @@
 import asyncio
+import html
 from functools import partial
 from deep_translator import GoogleTranslator
 from telegram import Update
@@ -65,7 +66,7 @@ async def translate(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         lang_name = POPULAR_LANGS.get(target_lang, target_lang.upper())
         await message.reply_text(
-            f"🌐 <b>{lang_name}</b>\n{result}",
+            f"🌐 <b>{html.escape(lang_name)}</b>\n{html.escape(result)}",
             parse_mode="HTML",
         )
 

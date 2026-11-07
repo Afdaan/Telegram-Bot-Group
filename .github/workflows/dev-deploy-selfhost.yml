@@ -12,8 +12,8 @@ jobs:
     env:
       IMAGE_NAME: afdaaan/telegram-bot-dev
       CONTAINER_NAME: telegram-bot-dev
-      BUILD_DIR: /opt/Telegram-Bot-Group
-      RUNTIME_DIR: /opt/Telegram-Bot-Group
+      BUILD_DIR: /opt/Telegram-Bot-Group-dev
+      RUNTIME_DIR: /opt/Telegram-Bot-Group-dev
       ENV_TYPE: DEV
 
     steps:
@@ -66,8 +66,27 @@ jobs:
             --restart unless-stopped \
             --env-file ${{ env.RUNTIME_DIR }}/.env \
             -v ${{ env.RUNTIME_DIR }}/logs:/app/logs \
+            --tmpfs /app/tmp:rw,noexec,nosuid,size=100m \
+            --read-only \
+            --cap-drop ALL \
+            --pids-limit 100 \
+            --memory 512m \
+            --cpus 1 \
             --network playground-network \
             ${{ env.IMAGE_NAME }}:${{ env.NEXT_TAG }}
+
+      - name: Verify Container Health
+        run: |
+          for attempt in $(seq 1 12); do
+            RUNNING=$(sudo docker inspect -f '{{.State.Running}}' ${{ env.CONTAINER_NAME }})
+            if [ "$RUNNING" = "true" ] && \
+               sudo docker logs ${{ env.CONTAINER_NAME }} 2>&1 | grep -Fq "Bot online"; then
+              exit 0
+            fi
+            sleep 5
+          done
+          sudo docker logs --tail 100 ${{ env.CONTAINER_NAME }}
+          exit 1
 
       - name: Cleanup Old Images
         run: |

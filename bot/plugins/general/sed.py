@@ -1,3 +1,4 @@
+import html
 import re
 from telegram import Update, constants
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
@@ -43,15 +44,9 @@ async def sed(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     try:
-        re_flags = re.IGNORECASE if "i" in flags else 0
         count = 0 if "g" in flags else 1
-
-        check = re.fullmatch(find, original, flags=re_flags)
-        if check:
-            await message.reply_text("Nice try 😏")
-            return
-
-        new_text = re.sub(find, replace, original, count=count, flags=re_flags)
+        pattern = re.compile(re.escape(find), re.IGNORECASE if "i" in flags else 0)
+        new_text = pattern.sub(lambda _: replace, original, count=count)
 
         if new_text == original:
             await message.reply_text("No match found.")
@@ -64,10 +59,11 @@ async def sed(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if new_text.strip():
             sender = reply.from_user
             name = sender.first_name if sender else "Someone"
-            await reply.reply_text(f"<b>{name}</b> meant:\n{new_text}", parse_mode="HTML")
+            await reply.reply_text(
+                f"<b>{html.escape(name)}</b> meant:\n{html.escape(new_text)}",
+                parse_mode="HTML",
+            )
 
-    except re.error:
-        await message.reply_text("Invalid regex pattern.")
     except Exception as e:
         logger.error("SED error: %s", e)
 

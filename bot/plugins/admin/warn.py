@@ -9,7 +9,7 @@ from telegram.ext import (
 from telegram.helpers import mention_html
 from bot.database.repo import Repository
 from bot.logger import get_logger
-from bot.utils.decorators import group_only, admin_only, bot_admin_required, skip_old_updates
+from bot.utils.decorators import group_only, admin_only, admin_right_required, bot_right_required, skip_old_updates
 from bot.utils.parse import extract_user, check_target_not_admin
 from bot.utils.string_handling import split_quotes
 
@@ -18,13 +18,16 @@ logger = get_logger(__name__)
 WARN_FILTER_GROUP = 9
 
 
-async def _do_warn(update, context, user_id, name, reason, chat_id):
+async def _do_warn(update, context, user_id, name, reason, chat_id, warned_by=None):
     settings = await Repository.get_or_create_settings(chat_id)
-    warning, count = await Repository.add_warning(user_id, chat_id, reason, update.effective_user.id)
+    warning, count = await Repository.add_warning(
+        user_id,
+        chat_id,
+        reason,
+        warned_by if warned_by is not None else update.effective_user.id,
+    )
 
     if count >= settings.warn_limit:
-        await Repository.reset_warnings(user_id, chat_id)
-
         if settings.warn_action == "kick":
             await context.bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
             await context.bot.unban_chat_member(chat_id=chat_id, user_id=user_id)
@@ -34,6 +37,8 @@ async def _do_warn(update, context, user_id, name, reason, chat_id):
             await context.bot.ban_chat_member(chat_id=chat_id, user_id=user_id)
             action_text = "banned"
             emoji = "🚫"
+
+        await Repository.reset_warnings(user_id, chat_id)
 
         await update.effective_message.reply_text(
             f"{emoji} {mention_html(user_id, name)} has been {action_text} "
@@ -64,8 +69,8 @@ async def _do_warn(update, context, user_id, name, reason, chat_id):
 
 @skip_old_updates
 @group_only
-@admin_only
-@bot_admin_required
+@admin_right_required("can_restrict_members")
+@bot_right_required("can_restrict_members")
 async def warn(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = await extract_user(update)
     if not target:
@@ -83,6 +88,10 @@ async def warn(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if update.effective_message.reply_to_message and len(args) > 1:
         reason = " ".join(args[1:])
+
+    if len(reason) > 512:
+        await update.effective_message.reply_text("Warning reasons must be 512 characters or fewer.")
+        return
 
     await Repository.upsert_user(user_id, first_name=name)
     await Repository.upsert_group(chat_id, title=update.effective_chat.title)
@@ -268,6 +277,12 @@ async def addwarn(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyword = extracted[0].lower()
         reply = extracted[1]
 
+    if len(keyword) > 255 or len(reply) > 512:
+        await update.effective_message.reply_text(
+            "Warn keywords must be at most 255 characters and replies at most 512."
+        )
+        return
+
     await Repository.upsert_group(chat_id, title=update.effective_chat.title)
     await Repository.add_warn_filter(chat_id, keyword, reply)
 
@@ -293,7 +308,7 @@ async def rmwarn(update: Update, context: ContextTypes.DEFAULT_TYPE):
     removed = await Repository.remove_warn_filter(chat_id, keyword)
 
     if removed:
-        await update.effective_message.reply_text(f"✅ Stopped warning for '{html.escape(keyword)}'.")
+        await update.effective_message.reply_text(f"✅ Stopped warning for '{keyword}'.")
     else:
         await update.effective_message.reply_text("That's not an active warn filter.")
 
@@ -345,7 +360,15 @@ async def check_warn_filters(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reason = wf.reply if wf.reply else f"Matched warn filter: {wf.keyword}"
 
             await Repository.upsert_user(user_id, first_name=name)
-            await _do_warn(update, context, user_id, name, reason, chat_id)
+            await _do_warn(
+                update,
+                context,
+                user_id,
+                name,
+                reason,
+                chat_id,
+                warned_by=context.bot.id,
+            )
             break
 
 

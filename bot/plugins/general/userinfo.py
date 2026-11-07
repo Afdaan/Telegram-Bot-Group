@@ -147,38 +147,74 @@ async def _send_user_info_response(update, context, user_id, lines):
 async def user_info_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data.split(":")
+    if len(data) < 2 or data[1] not in {"ban", "mute", "reset", "close"}:
+        await query.answer("Invalid or expired action.", show_alert=True)
+        return
+
     action = data[1]
-    
+    chat_id = query.message.chat.id
+
+    try:
+        member = await context.bot.get_chat_member(chat_id, query.from_user.id)
+        required_right = "can_restrict_members" if action in {"ban", "mute"} else None
+        allowed = member.status == "creator" or (
+            member.status == "administrator"
+            and (required_right is None or bool(getattr(member, required_right, False)))
+        )
+        if not allowed:
+            await query.answer("Admin only!", show_alert=True)
+            return
+    except Exception as exc:
+        logger.warning("Failed to authorize user info callback: %s", exc)
+        await query.answer("Unable to verify your permissions.", show_alert=True)
+        return
+
     if action == "close":
+        await query.answer()
         await query.message.delete()
         return
 
-    target_id = int(data[2])
-    chat_id = query.message.chat.id
-    
-    try:
-        member = await context.bot.get_chat_member(chat_id, query.from_user.id)
-        if member.status not in ("administrator", "creator"):
-            await query.answer("Admin only!", show_alert=True)
-            return
-    except Exception:
+    if len(data) != 3:
+        await query.answer("Invalid or expired action.", show_alert=True)
         return
 
     try:
+        target_id = int(data[2])
+    except ValueError:
+        await query.answer("Invalid or expired action.", show_alert=True)
+        return
+
+    try:
+        if action in {"ban", "mute"}:
+            bot_member = await context.bot.get_chat_member(chat_id, context.bot.id)
+            bot_allowed = bot_member.status == "creator" or (
+                bot_member.status == "administrator"
+                and bool(getattr(bot_member, "can_restrict_members", False))
+            )
+            if not bot_allowed:
+                await query.answer("The bot cannot restrict members.", show_alert=True)
+                return
+
+            target = await context.bot.get_chat_member(chat_id, target_id)
+            if target.status in ("administrator", "creator"):
+                await query.answer("Admins cannot be moderated.", show_alert=True)
+                return
+
         if action == "ban":
             await context.bot.ban_chat_member(chat_id, target_id)
-            await query.answer("Banned.")
+            result = "Banned."
         elif action == "mute":
             await context.bot.restrict_chat_member(chat_id, target_id, ChatPermissions(can_send_messages=False))
-            await query.answer("Muted.")
-        elif action == "reset":
+            result = "Muted."
+        else:
             await Repository.reset_warnings(target_id, chat_id)
-            await query.answer("Warnings reset.")
+            result = "Warnings reset."
 
         await query.message.edit_reply_markup(None)
-        await query.answer()
+        await query.answer(result)
     except Exception as e:
-        await query.answer(f"Error: {e}", show_alert=True)
+        logger.error("User info callback failed for action %s: %s", action, e)
+        await query.answer("The action failed. Check permissions and try again.", show_alert=True)
 
 
 def _prepare_reply_params(message):

@@ -10,6 +10,7 @@ logger = get_logger(__name__)
 
 STICKER_SIZE = 512
 MAX_VIDEO_STICKER_BYTES = 256 * 1024
+FFMPEG_TIMEOUT_SECONDS = 45
 tempfile.tempdir = os.environ.get("TMPDIR", "/app/tmp")
 
 
@@ -24,8 +25,19 @@ async def run_ffmpeg(*args: str) -> tuple[int, str, str]:
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-    stdout, stderr = await proc.communicate()
-    return proc.returncode, stdout.decode(errors="ignore"), stderr.decode(errors="ignore")
+    try:
+        stdout, stderr = await asyncio.wait_for(
+            proc.communicate(), timeout=FFMPEG_TIMEOUT_SECONDS
+        )
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.communicate()
+        return 124, "", "ffmpeg timed out"
+    return (
+        proc.returncode,
+        stdout.decode(errors="ignore")[-4000:],
+        stderr.decode(errors="ignore")[-4000:],
+    )
 
 
 def resize_to_sticker(image: Image.Image) -> Image.Image:

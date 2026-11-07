@@ -1,7 +1,11 @@
 import html
+import ipaddress
 import re
 import asyncio
-from functools import partial
+import socket
+from urllib.parse import urljoin, urlparse
+
+import httpx
 from feedparser import parse as feedparse
 from telegram import Update
 from telegram.error import BadRequest, Forbidden
@@ -12,14 +16,69 @@ from bot.utils.decorators import group_only, admin_only
 
 logger = get_logger(__name__)
 
+MAX_FEED_BYTES = 2 * 1024 * 1024
+MAX_FEEDS_PER_CHAT = 20
+MAX_REDIRECTS = 5
+RSS_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 
-def _parse_feed(url: str):
-    return feedparse(url)
+
+def _entry_key(entry) -> str:
+    return str(entry.get("link") or entry.get("id") or "")[:512]
 
 
-async def parse_feed_async(url: str):
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, partial(_parse_feed, url))
+async def _validate_public_url(url: str) -> None:
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("Only public HTTP or HTTPS URLs are allowed.")
+    if parsed.username or parsed.password:
+        raise ValueError("URLs with embedded credentials are not allowed.")
+
+    try:
+        addresses = [ipaddress.ip_address(parsed.hostname)]
+    except ValueError:
+        try:
+            resolved = await asyncio.to_thread(
+                socket.getaddrinfo,
+                parsed.hostname,
+                parsed.port or (443 if parsed.scheme == "https" else 80),
+                type=socket.SOCK_STREAM,
+            )
+        except socket.gaierror as exc:
+            raise ValueError("The feed hostname could not be resolved.") from exc
+        addresses = [ipaddress.ip_address(item[4][0]) for item in resolved]
+
+    if not addresses or any(not address.is_global for address in addresses):
+        raise ValueError("Private or reserved network addresses are not allowed.")
+
+
+async def _fetch_feed(url: str):
+    current_url = url
+    async with httpx.AsyncClient(
+        follow_redirects=False,
+        timeout=RSS_TIMEOUT,
+        trust_env=False,
+        headers={"User-Agent": "AlisaTelegramBot/1.0"},
+    ) as client:
+        for _ in range(MAX_REDIRECTS + 1):
+            await _validate_public_url(current_url)
+
+            async with client.stream("GET", current_url) as response:
+                if response.is_redirect:
+                    location = response.headers.get("location")
+                    if not location:
+                        raise ValueError("The feed returned an invalid redirect.")
+                    current_url = urljoin(current_url, location)
+                    continue
+
+                response.raise_for_status()
+                body = bytearray()
+                async for chunk in response.aiter_bytes():
+                    body.extend(chunk)
+                    if len(body) > MAX_FEED_BYTES:
+                        raise ValueError("The feed is too large.")
+                return feedparse(bytes(body))
+
+    raise ValueError("The feed redirected too many times.")
 
 
 async def rss_show(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -29,15 +88,26 @@ async def rss_show(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     feed_link = args[1].strip()
-    feed = await parse_feed_async(feed_link)
+    if len(feed_link) > 512:
+        await update.effective_message.reply_text("❌ Feed URLs must be 512 characters or fewer.")
+        return
+    try:
+        feed = await _fetch_feed(feed_link)
+    except (ValueError, httpx.HTTPError) as exc:
+        await update.effective_message.reply_text(f"❌ Unable to fetch feed: {exc}")
+        return
 
     if feed.bozo:
         await update.effective_message.reply_text("❌ This is not a valid RSS feed link.")
         return
 
-    title = feed.feed.get("title", "Unknown")
-    description = re.sub(r"<[^<]+?>", "", feed.feed.get("description", "No description"))
-    link = feed.feed.get("link", feed_link)
+    title = str(feed.feed.get("title") or "Unknown")
+    description = re.sub(
+        r"<[^<]+?>",
+        "",
+        str(feed.feed.get("description") or "No description"),
+    )
+    link = str(feed.feed.get("link") or feed_link)[:1000]
 
     text = (
         f"📡 <b>{html.escape(title)}</b>\n"
@@ -47,8 +117,8 @@ async def rss_show(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if feed.entries:
         entry = feed.entries[0]
-        entry_title = entry.get("title", "Unknown")
-        entry_link = entry.get("link", "")
+        entry_title = str(entry.get("title") or "Unknown")[:512]
+        entry_link = str(entry.get("link") or "")[:1000]
         text += (
             f"\n\n📰 <b>Latest:</b>\n"
             f"{html.escape(entry_title)}\n"
@@ -84,8 +154,25 @@ async def rss_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     chat_id = update.effective_chat.id
     feed_link = args[1].strip()
+    if len(feed_link) > 512:
+        await update.effective_message.reply_text("❌ Feed URLs must be 512 characters or fewer.")
+        return
 
-    feed = await parse_feed_async(feed_link)
+    feeds = await Repository.get_rss_feeds(chat_id)
+    if any(item.feed_link == feed_link for item in feeds):
+        await update.effective_message.reply_text("This feed has already been added.")
+        return
+    if len(feeds) >= MAX_FEEDS_PER_CHAT:
+        await update.effective_message.reply_text(
+            f"This group has reached the limit of {MAX_FEEDS_PER_CHAT} RSS feeds."
+        )
+        return
+
+    try:
+        feed = await _fetch_feed(feed_link)
+    except (ValueError, httpx.HTTPError) as exc:
+        await update.effective_message.reply_text(f"❌ Unable to fetch feed: {exc}")
+        return
 
     if feed.bozo:
         await update.effective_message.reply_text("❌ This is not a valid RSS feed link.")
@@ -93,12 +180,12 @@ async def rss_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     old_entry_link = ""
     if feed.entries:
-        old_entry_link = feed.entries[0].get("link", "")
+        old_entry_link = _entry_key(feed.entries[0])
 
     added = await Repository.add_rss_feed(chat_id, feed_link, old_entry_link)
 
     if added:
-        title = feed.feed.get("title", feed_link)
+        title = str(feed.feed.get("title") or feed_link)
         await update.effective_message.reply_text(
             f"✅ Subscribed to <b>{html.escape(title)}</b>",
             parse_mode="HTML",
@@ -137,26 +224,24 @@ async def rss_update_job(context: ContextTypes.DEFAULT_TYPE):
 
     for row in feeds:
         try:
-            feed = await parse_feed_async(row.feed_link)
+            feed = await _fetch_feed(row.feed_link)
 
             if feed.bozo or not feed.entries:
                 continue
 
             new_entries = []
             for entry in feed.entries:
-                if entry.get("link") == row.old_entry_link:
+                if _entry_key(entry) == row.old_entry_link:
                     break
                 new_entries.append(entry)
 
             if not new_entries:
                 continue
 
-            await Repository.update_rss_entry(row.id, new_entries[0].get("link", ""))
-
             to_send = list(reversed(new_entries[:5]))
             for entry in to_send:
-                title = entry.get("title", "No title")
-                link = entry.get("link", "")
+                title = str(entry.get("title") or "No title")[:512]
+                link = str(entry.get("link") or "")[:1000]
                 text = f"📰 <b>{html.escape(title)}</b>\n{html.escape(link)}"
 
                 try:
@@ -177,6 +262,8 @@ async def rss_update_job(context: ContextTypes.DEFAULT_TYPE):
                     )
                 except (BadRequest, Forbidden):
                     pass
+
+            await Repository.update_rss_entry(row.id, _entry_key(new_entries[0]))
 
         except Exception as e:
             logger.error("RSS error processing feed %s: %s", row.feed_link, e)

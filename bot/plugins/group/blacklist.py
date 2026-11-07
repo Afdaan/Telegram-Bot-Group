@@ -1,3 +1,4 @@
+import html
 import re
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest
@@ -14,17 +15,22 @@ BLACKLIST_GROUP = 11
 @group_only
 async def blacklist(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    triggers = await Repository.get_blacklist(chat_id)
+    entries = await Repository.get_blacklist_entries(chat_id)
 
-    if not triggers:
+    if not entries:
         await update.effective_message.reply_text("📝 No blacklisted words in this group.")
         return
 
-    text = f"🚫 <b>Blacklisted Words in {update.effective_chat.title}</b>\n\nClick a button to remove it from the list:"
+    text = (
+        f"🚫 <b>Blacklisted Words in {html.escape(update.effective_chat.title or 'this group')}</b>\n\n"
+        "Click a button to remove it from the list:"
+    )
     
     buttons = []
-    for trigger in sorted(triggers):
-        buttons.append([InlineKeyboardButton(f"🗑️ {trigger}", callback_data=f"rm_bl:{trigger}")])
+    for entry in sorted(entries, key=lambda item: item.trigger):
+        buttons.append([
+            InlineKeyboardButton(f"🗑️ {entry.trigger}", callback_data=f"rm_bl:{entry.id}")
+        ])
     
     reply_markup = InlineKeyboardMarkup(buttons)
     await update.effective_message.reply_text(text, parse_mode="HTML", reply_markup=reply_markup)
@@ -32,22 +38,27 @@ async def blacklist(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def blacklist_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    trigger = query.data.split(":", 1)[1]
     chat_id = update.effective_chat.id
+
+    try:
+        blacklist_id = int(query.data.split(":", 1)[1])
+    except (IndexError, ValueError):
+        await query.answer("Invalid blacklist action.", show_alert=True)
+        return
     
     member = await context.bot.get_chat_member(chat_id, update.effective_user.id)
     if member.status not in ("administrator", "creator"):
         await query.answer("Admin only!", show_alert=True)
         return
 
-    deleted = await Repository.remove_blacklist(chat_id, trigger)
+    deleted = await Repository.remove_blacklist_by_id(chat_id, blacklist_id)
     if deleted:
-        await query.answer(f"'{trigger}' removed from blacklist.")
+        await query.answer("Blacklist entry removed.")
         await blacklist(update, context)
         try:
              await query.message.delete()
-        except:
-             pass
+        except BadRequest:
+            pass
     else:
         await query.answer("Not found.")
 
@@ -68,6 +79,12 @@ async def add_blacklist(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = args[1]
     triggers = list(set(t.strip().lower() for t in text.split("\n") if t.strip()))
 
+    if any(len(trigger) > 255 for trigger in triggers):
+        await update.effective_message.reply_text(
+            "Blacklist entries must be 255 characters or fewer."
+        )
+        return
+
     await Repository.upsert_group(chat_id, title=update.effective_chat.title)
 
     for trigger in triggers:
@@ -75,7 +92,7 @@ async def add_blacklist(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if len(triggers) == 1:
         await update.effective_message.reply_text(
-            f"🚫 Added <code>{triggers[0]}</code> to the blacklist.",
+            f"🚫 Added <code>{html.escape(triggers[0])}</code> to the blacklist.",
             parse_mode="HTML",
         )
     else:
@@ -112,7 +129,7 @@ async def remove_blacklist(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(triggers) == 1:
         if removed:
             await update.effective_message.reply_text(
-                f"✅ Removed <code>{triggers[0]}</code> from the blacklist.",
+                f"✅ Removed <code>{html.escape(triggers[0])}</code> from the blacklist.",
                 parse_mode="HTML",
             )
         else:

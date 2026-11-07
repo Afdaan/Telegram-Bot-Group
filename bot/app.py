@@ -2,16 +2,18 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder
 from bot.config import settings
 from bot.logger import setup_logging, get_logger
-from bot.database.engine import init_db
+from bot.database.engine import engine, init_db
 from bot.plugins.loader import register_all_plugins
 from bot.errors import error_handler
+from migrate import run_migrations
 
 logger = get_logger(__name__)
 
 
 async def post_init(application):
+    await run_migrations(engine)
     await init_db()
-    logger.info("Database tables synced")
+    logger.info("Database migrations and table sync complete")
 
     bot_info = await application.bot.get_me()
     logger.info("Bot online → @%s (id: %s)", bot_info.username, bot_info.id)

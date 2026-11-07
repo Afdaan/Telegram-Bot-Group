@@ -1,10 +1,13 @@
+import html
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.error import BadRequest
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters as TelegramFilters, ContextTypes
 from bot.database.repo import Repository
 from bot.logger import get_logger
 from bot.utils.decorators import group_only, admin_only
 
 logger = get_logger(__name__)
+FILTER_GROUP = 10
 
 
 @group_only
@@ -42,6 +45,9 @@ async def add_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not trigger:
         await update.effective_message.reply_text("Trigger cannot be empty.")
+        return
+    if len(trigger) > 255:
+        await update.effective_message.reply_text("Trigger is too long. Maximum is 255 characters.")
         return
 
     if not response and not update.effective_message.reply_to_message:
@@ -112,7 +118,9 @@ async def add_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file_type=file_type
     )
 
-    await update.effective_message.reply_text(f"Filter saved: `{trigger}`", parse_mode="Markdown")
+    await update.effective_message.reply_html(
+        f"Filter saved: <code>{html.escape(trigger)}</code>"
+    )
 
 
 @group_only
@@ -132,7 +140,9 @@ async def stop_filter(update: Update, context: ContextTypes.DEFAULT_TYPE):
     deleted = await Repository.remove_filter(update.effective_chat.id, trigger)
     
     if deleted:
-        await update.effective_message.reply_text(f"Filter deleted: `{trigger}`", parse_mode="Markdown")
+        await update.effective_message.reply_html(
+            f"Filter deleted: <code>{html.escape(trigger)}</code>"
+        )
     else:
         await update.effective_message.reply_text("Filter not found.")
 
@@ -146,11 +156,14 @@ async def get_filters_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("No filters in this group.")
         return
 
-    text = f"✨ <b>Filters for {update.effective_chat.title}</b>\n\nClick a button below to remove that filter:"
+    text = (
+        f"✨ <b>Filters for {html.escape(update.effective_chat.title or 'this group')}</b>\n\n"
+        "Click a button below to remove that filter:"
+    )
     
     buttons = []
     for f in filters_list:
-        buttons.append([InlineKeyboardButton(f"🗑️ {f.trigger}", callback_data=f"rm_filter:{f.trigger}")])
+        buttons.append([InlineKeyboardButton(f"🗑️ {f.trigger}", callback_data=f"rm_filter:{f.id}")])
     
     reply_markup = InlineKeyboardMarkup(buttons)
     await update.effective_message.reply_text(text, parse_mode="HTML", reply_markup=reply_markup)
@@ -158,22 +171,27 @@ async def get_filters_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def filter_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    trigger = query.data.split(":", 1)[1]
     chat_id = update.effective_chat.id
+
+    try:
+        filter_id = int(query.data.split(":", 1)[1])
+    except (IndexError, ValueError):
+        await query.answer("Invalid filter action.", show_alert=True)
+        return
 
     member = await context.bot.get_chat_member(chat_id, update.effective_user.id)
     if member.status not in ("administrator", "creator"):
         await query.answer("Admin only!", show_alert=True)
         return
 
-    deleted = await Repository.remove_filter(chat_id, trigger)
+    deleted = await Repository.remove_filter_by_id(chat_id, filter_id)
     if deleted:
-        await query.answer(f"Filter '{trigger}' removed.")
+        await query.answer("Filter removed.")
         await get_filters_list(update, context)
         try:
              await query.message.delete()
-        except:
-             pass
+        except BadRequest:
+            pass
     else:
         await query.answer("Filter not found.")
 
@@ -213,4 +231,10 @@ def register(app: Application):
     app.add_handler(CommandHandler("stop", stop_filter))
     app.add_handler(CommandHandler("filters", get_filters_list))
     app.add_handler(CallbackQueryHandler(filter_callback, pattern=r"^rm_filter:"))
-    app.add_handler(MessageHandler(TelegramFilters.TEXT & ~TelegramFilters.COMMAND & TelegramFilters.ChatType.GROUPS, filter_listener))
+    app.add_handler(
+        MessageHandler(
+            TelegramFilters.TEXT & ~TelegramFilters.COMMAND & TelegramFilters.ChatType.GROUPS,
+            filter_listener,
+        ),
+        group=FILTER_GROUP,
+    )

@@ -1,3 +1,4 @@
+import html
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from bot.database.repo import Repository
@@ -5,6 +6,7 @@ from bot.logger import get_logger
 from bot.utils.decorators import group_only, admin_only
 
 logger = get_logger(__name__)
+NOTES_GROUP = 12
 
 
 @group_only
@@ -16,6 +18,9 @@ async def save_note(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     note_name = args[0].lower()
+    if len(note_name) > 255:
+        await update.effective_message.reply_text("Note names must be 255 characters or fewer.")
+        return
     content = ""
     file_id = None
     file_type = None
@@ -65,7 +70,10 @@ async def save_note(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     logger.info("Note '#%s' saved in chat %s", note_name, update.effective_chat.id)
-    await update.effective_message.reply_text(f"Note <code>#{note_name}</code> saved!", parse_mode="HTML")
+    await update.effective_message.reply_text(
+        f"Note <code>#{html.escape(note_name)}</code> saved!",
+        parse_mode="HTML",
+    )
 
 
 @group_only
@@ -98,7 +106,10 @@ async def clear_note(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if deleted:
         logger.info("Note '#%s' deleted in chat %s", note_name, update.effective_chat.id)
-        await update.effective_message.reply_text(f"Note <code>#{note_name}</code> deleted.", parse_mode="HTML")
+        await update.effective_message.reply_text(
+            f"Note <code>#{html.escape(note_name)}</code> deleted.",
+            parse_mode="HTML",
+        )
     else:
         await update.effective_message.reply_text("Note not found.")
 
@@ -110,14 +121,17 @@ async def list_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("No notes saved in this group.")
         return
 
-    text = f"✨ <b>Notes for {update.effective_chat.title}</b>\n\nYou can use <code>#notename</code> to recall them.\n"
+    text = (
+        f"✨ <b>Notes for {html.escape(update.effective_chat.title or 'this group')}</b>\n\n"
+        "You can use <code>#notename</code> to recall them.\n"
+    )
     
     buttons = []
     sorted_notes = sorted(notes, key=lambda x: x.name)
     
     current_row = []
     for note in sorted_notes:
-        current_row.append(InlineKeyboardButton(f"📎 {note.name}", callback_data=f"get_note:{note.name}"))
+        current_row.append(InlineKeyboardButton(f"📎 {note.name}", callback_data=f"get_note:{note.id}"))
         if len(current_row) == 2:
             buttons.append(current_row)
             current_row = []
@@ -129,8 +143,13 @@ async def list_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def note_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    note_name = query.data.split(":")[1]
-    note = await Repository.get_note(update.effective_chat.id, note_name)
+    try:
+        note_id = int(query.data.split(":", 1)[1])
+    except (IndexError, ValueError):
+        await query.answer("Invalid note action.", show_alert=True)
+        return
+
+    note = await Repository.get_note_by_id(update.effective_chat.id, note_id)
     
     if note:
         await _send_note(update, note)
@@ -186,4 +205,4 @@ def register(app: Application):
     app.add_handler(MessageHandler(
         filters.Regex(r"^#") & filters.ChatType.GROUPS, 
         hashtag_listener
-    ), group=9)
+    ), group=NOTES_GROUP)

@@ -3,7 +3,7 @@ from telegram import Update, ChatPermissions
 from telegram.error import BadRequest
 from telegram.ext import Application, CommandHandler, ContextTypes
 from bot.logger import get_logger
-from bot.utils.decorators import group_only, admin_only, bot_admin_required, skip_old_updates
+from bot.utils.decorators import group_only, admin_right_required, bot_right_required, skip_old_updates
 from bot.utils.parse import extract_user, parse_duration, format_duration, check_target_not_admin
 
 logger = get_logger(__name__)
@@ -11,8 +11,8 @@ logger = get_logger(__name__)
 
 @skip_old_updates
 @group_only
-@admin_only
-@bot_admin_required
+@admin_right_required("can_restrict_members")
+@bot_right_required("can_restrict_members")
 async def mute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = await extract_user(update)
     if not target:
@@ -73,8 +73,8 @@ async def mute(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @skip_old_updates
 @group_only
-@admin_only
-@bot_admin_required
+@admin_right_required("can_restrict_members")
+@bot_right_required("can_restrict_members")
 async def unmute(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = await extract_user(update)
     if not target:

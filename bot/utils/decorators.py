@@ -41,6 +41,28 @@ def admin_only(func):
         return await func(update, context, *args, **kwargs)
     return wrapper
 
+def admin_right_required(right: str):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+            chat_id = update.effective_chat.id
+            user_id = update.effective_user.id
+            member = await context.bot.get_chat_member(chat_id, user_id)
+
+            allowed = member.status == ChatMember.OWNER or (
+                member.status == ChatMember.ADMINISTRATOR
+                and bool(getattr(member, right, False))
+            )
+            if not allowed:
+                await update.effective_message.reply_text(
+                    "⛔ You don't have the required admin permission for this action."
+                )
+                return
+
+            return await func(update, context, *args, **kwargs)
+        return wrapper
+    return decorator
+
 
 def bot_admin_required(func):
     @wraps(func)
@@ -54,3 +76,24 @@ def bot_admin_required(func):
 
         return await func(update, context, *args, **kwargs)
     return wrapper
+
+def bot_right_required(right: str):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+            chat_id = update.effective_chat.id
+            member = await context.bot.get_chat_member(chat_id, context.bot.id)
+
+            allowed = member.status == ChatMember.OWNER or (
+                member.status == ChatMember.ADMINISTRATOR
+                and bool(getattr(member, right, False))
+            )
+            if not allowed:
+                await update.effective_message.reply_text(
+                    "⚠️ I don't have the required admin permission for this action."
+                )
+                return
+
+            return await func(update, context, *args, **kwargs)
+        return wrapper
+    return decorator

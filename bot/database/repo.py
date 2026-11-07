@@ -100,7 +100,7 @@ class Repository:
                 warned_by=warned_by,
             )
             session.add(warning)
-            await session.commit()
+            await session.flush()
 
             count = await session.scalar(
                 select(func.count(Warning.id)).where(
@@ -108,6 +108,7 @@ class Repository:
                     Warning.group_id == group_id,
                 )
             )
+            await session.commit()
             return warning, count
 
     @staticmethod
@@ -177,6 +178,15 @@ class Repository:
             return result.rowcount > 0
 
     @staticmethod
+    async def remove_filter_by_id(group_id: int, filter_id: int) -> bool:
+        async with async_session() as session:
+            result = await session.execute(
+                delete(Filter).where(Filter.group_id == group_id, Filter.id == filter_id)
+            )
+            await session.commit()
+            return result.rowcount > 0
+
+    @staticmethod
     async def get_filter(group_id: int, trigger: str) -> Filter | None:
         async with async_session() as session:
             return await session.scalar(
@@ -200,6 +210,14 @@ class Repository:
             return list(result.all())
 
     @staticmethod
+    async def get_blacklist_entries(group_id: int) -> list[Blacklist]:
+        async with async_session() as session:
+            result = await session.scalars(
+                select(Blacklist).where(Blacklist.group_id == group_id)
+            )
+            return list(result.all())
+
+    @staticmethod
     async def add_blacklist(group_id: int, trigger: str) -> None:
         async with async_session() as session:
             existing = await session.scalar(
@@ -219,6 +237,18 @@ class Repository:
                 delete(Blacklist).where(
                     Blacklist.group_id == group_id,
                     func.lower(Blacklist.trigger) == trigger.lower(),
+                )
+            )
+            await session.commit()
+            return result.rowcount > 0
+
+    @staticmethod
+    async def remove_blacklist_by_id(group_id: int, blacklist_id: int) -> bool:
+        async with async_session() as session:
+            result = await session.execute(
+                delete(Blacklist).where(
+                    Blacklist.group_id == group_id,
+                    Blacklist.id == blacklist_id,
                 )
             )
             await session.commit()
@@ -346,6 +376,13 @@ class Repository:
         async with async_session() as session:
             return await session.scalar(
                 select(Note).where(Note.group_id == group_id, Note.name == name.lower())
+            )
+
+    @staticmethod
+    async def get_note_by_id(group_id: int, note_id: int) -> Note | None:
+        async with async_session() as session:
+            return await session.scalar(
+                select(Note).where(Note.group_id == group_id, Note.id == note_id)
             )
 
     @staticmethod

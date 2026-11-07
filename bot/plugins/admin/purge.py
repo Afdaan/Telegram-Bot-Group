@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from bot.logger import get_logger
-from bot.utils.decorators import group_only, admin_only, bot_admin_required, skip_old_updates
+from bot.utils.decorators import group_only, admin_right_required, bot_right_required, skip_old_updates
 
 logger = get_logger(__name__)
 
@@ -24,8 +24,8 @@ async def _batch_delete(context, chat_id: int, message_ids: list[int]):
 
 @skip_old_updates
 @group_only
-@admin_only
-@bot_admin_required
+@admin_right_required("can_delete_messages")
+@bot_right_required("can_delete_messages")
 async def purge(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     cmd_msg_id = update.effective_message.message_id

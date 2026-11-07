@@ -12,6 +12,15 @@ logger = get_logger(__name__)
 REPORT_GROUP = 5
 
 
+async def _has_chat_right(context, chat_id: int, user_id: int, right: str | None) -> bool:
+    member = await context.bot.get_chat_member(chat_id, user_id)
+    if member.status == ChatMember.OWNER:
+        return True
+    if member.status != ChatMember.ADMINISTRATOR:
+        return False
+    return right is None or bool(getattr(member, right, False))
+
+
 async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_message or not update.effective_user:
         return
@@ -77,7 +86,7 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
         [
             InlineKeyboardButton("🗑️ Delete", callback_data=f"admin_report:del:{message.reply_to_message.message_id}:{chat.id}"),
-            InlineKeyboardButton("✅ Ignore", callback_data="admin_report:ignore")
+            InlineKeyboardButton("✅ Ignore", callback_data=f"admin_report:ignore:0:{chat.id}")
         ]
     ])
 
@@ -148,31 +157,61 @@ async def reports_setting(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def report_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data.split(":")
-    
-    if data[1] == "ignore":
-        await query.message.edit_text(f"{query.message.text}\n\n✅ <i>Report Ignored</i>", parse_mode="HTML")
-        await query.answer("Ignored.")
+
+    if len(data) != 4 or data[1] not in {"ban", "mute", "del", "ignore"}:
+        await query.answer("This report action is invalid or expired.", show_alert=True)
         return
 
     action = data[1]
-    target_id = int(data[2])
-    chat_id = int(data[3])
+    try:
+        target_id = int(data[2])
+        chat_id = int(data[3])
+    except ValueError:
+        await query.answer("This report action is invalid or expired.", show_alert=True)
+        return
+
+    required_right = "can_delete_messages" if action == "del" else "can_restrict_members"
+    if action == "ignore":
+        required_right = None
 
     try:
+        if not await _has_chat_right(context, chat_id, query.from_user.id, required_right):
+            await query.answer("You no longer have permission for this action.", show_alert=True)
+            return
+
+        if action != "ignore" and not await _has_chat_right(
+            context, chat_id, context.bot.id, required_right
+        ):
+            await query.answer("The bot lacks the required permission.", show_alert=True)
+            return
+
+        if action in {"ban", "mute"}:
+            target = await context.bot.get_chat_member(chat_id, target_id)
+            if target.status in (ChatMember.ADMINISTRATOR, ChatMember.OWNER):
+                await query.answer("Admins cannot be moderated with this button.", show_alert=True)
+                return
+
         if action == "ban":
             await context.bot.ban_chat_member(chat_id, target_id)
-            await query.answer("User Banned.", show_alert=True)
+            result = "User banned."
         elif action == "mute":
             from telegram import ChatPermissions
             await context.bot.restrict_chat_member(chat_id, target_id, ChatPermissions(can_send_messages=False))
-            await query.answer("User Muted.", show_alert=True)
+            result = "User muted."
         elif action == "del":
             await context.bot.delete_message(chat_id, target_id)
-            await query.answer("Message Deleted.")
-            
-        await query.message.edit_text(f"{query.message.text}\n\n✅ <i>Action Taken: {action.upper()}</i>", parse_mode="HTML")
+            result = "Message deleted."
+        else:
+            result = "Report ignored."
+
+        await query.answer(result)
+        await query.message.edit_text(
+            f"{query.message.text_html}\n\n✅ <i>Action Taken: {action.upper()}</i>",
+            parse_mode="HTML",
+        )
     except Exception as e:
-        await query.answer(f"Error: {e}", show_alert=True)
+        logger.error("REPORT callback failed for action %s in %s: %s", action, chat_id, e)
+        await query.answer("The action failed. Check the bot permissions and try again.", show_alert=True)
 
 
 def register(app: Application):

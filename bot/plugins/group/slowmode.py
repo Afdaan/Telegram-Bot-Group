@@ -30,8 +30,8 @@ async def set_slowmode(bot, chat_id: int, seconds: int):
             return result
         except httpx.TimeoutException:
             raise Exception("⚠️ Request timed out. Please try again.")
-        except httpx.HTTPError as e:
-            logger.error(f"HTTP error: {e}")
+        except httpx.HTTPError:
+            logger.error("Slowmode request failed before Telegram returned a response")
             raise Exception("⚠️ Failed to connect to Telegram API. Please try again later.")
 
 
